@@ -177,15 +177,26 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
 
   async parseJson(text: string) {
     try {
+      // Clean the input text - remove any potential hidden characters
+      if (!text || typeof text !== 'string') {
+        throw new Error('Invalid input: expected a string');
+      }
+      
+      // Trim and normalize whitespace
+      let cleanText = text.trim();
+      
+      // Remove any zero-width characters that might cause parsing issues
+      cleanText = cleanText.replace(/[\u200B-\u200D\uFEFF]/g, '');
+      
       // First, try to detect the format
-      if (text.startsWith('banktaglayoutsplugin:') || text.startsWith('banktags,')) {
+      if (cleanText.startsWith('banktaglayoutsplugin:') || cleanText.startsWith('banktags,')) {
         // Validate format
         if (!this.isValidBankTagFormat(text)) {
           throw new Error('Invalid bank tag format');
         }
 
         // Parse as bank tag layout or bank tag
-        const bankTagLayout = this.bankTagLayoutService.parseExport(text);
+        const bankTagLayout = this.bankTagLayoutService.parseExport(cleanText);
         
         // Preserve existing category and tags if we're reparsing
         const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Custom';
@@ -204,7 +215,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
           type: text.startsWith('banktaglayoutsplugin:') ? 'banktaglayout' : 'banktag',
           category,
           tags,
-          originalFormat: text  // Store original format
+          originalFormat: cleanText  // Store original format
         };
         return;
       }
@@ -212,19 +223,110 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
       // Try to parse as inventory setup JSON
       let jsonData: LoadoutPreview;
       try {
-        jsonData = JSON.parse(text);
-      } catch {
-        jsonData = text as unknown as LoadoutPreview;
+        // Check if there are multiple JSON objects concatenated (common when pasting)
+        // Try to find the first complete JSON object
+        let jsonText = cleanText;
+        
+        // If we detect multiple JSON objects (looking for }{ pattern), extract just the first one
+        const multipleJsonMatch = cleanText.match(/^(\{.*?\})\}\{/);
+        if (multipleJsonMatch) {
+          // Found concatenated JSON objects, use only the first one
+          jsonText = multipleJsonMatch[1];
+          console.warn('Detected multiple JSON objects concatenated. Using only the first one.');
+        } else {
+          // Try to find the first valid JSON object by finding where the first complete object ends
+          // Look for the closing brace that matches the first opening brace
+          let braceCount = 0;
+          let firstJsonEnd = -1;
+          for (let i = 0; i < cleanText.length; i++) {
+            if (cleanText[i] === '{') {
+              braceCount++;
+            } else if (cleanText[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                firstJsonEnd = i + 1;
+                break;
+              }
+            }
+          }
+          
+          // If we found a complete JSON object and there's more content after it, extract just the first object
+          if (firstJsonEnd > 0 && firstJsonEnd < cleanText.length) {
+            const remainingText = cleanText.substring(firstJsonEnd).trim();
+            if (remainingText.length > 0 && remainingText.startsWith('{')) {
+              // There's another JSON object after this one, use only the first
+              jsonText = cleanText.substring(0, firstJsonEnd);
+              console.warn('Detected additional content after JSON object. Using only the first complete object.');
+            }
+          }
+        }
+        
+        // Log the input for debugging (truncate if too long)
+        if (jsonText.length > 200) {
+          console.log('Parsing JSON (first 200 chars):', jsonText.substring(0, 200));
+        } else {
+          console.log('Parsing JSON:', jsonText);
+        }
+        
+        const parsed = JSON.parse(jsonText);
+        jsonData = parsed;
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        console.error('Input text length:', cleanText.length);
+        console.error('Input text (first 500 chars):', cleanText.substring(0, 500));
+        
+        // Check if it's a syntax error and provide helpful message
+        if (parseError instanceof SyntaxError) {
+          const errorMsg = parseError.message;
+          const positionMatch = errorMsg.match(/position (\d+)/);
+          if (positionMatch) {
+            const position = parseInt(positionMatch[1]);
+            const start = Math.max(0, position - 50);
+            const end = Math.min(cleanText.length, position + 50);
+            const context = cleanText.substring(start, end);
+            console.error('Error context:', context);
+            
+            // Check if this is a "multiple JSON objects" issue
+            if (context.includes('}{')) {
+              throw new Error('Multiple JSON objects detected. Please paste only one JSON object at a time.');
+            }
+            
+            throw new Error(`Invalid JSON format at position ${position}: ${errorMsg}. Context: ...${context}...`);
+          }
+          throw new Error(`Invalid JSON format: ${errorMsg}. Please check your JSON syntax.`);
+        }
+        throw new Error('Invalid JSON format. Please check your JSON syntax.');
       }
 
-      // Validate the setup structure
-      if (!jsonData?.setup?.name || !Array.isArray(jsonData.setup.inv) || !Array.isArray(jsonData.setup.eq)) {
-        throw new Error('Invalid loadout format');
+      // Validate that jsonData is an object
+      if (!jsonData || typeof jsonData !== 'object') {
+        throw new Error('Invalid loadout format: expected an object');
+      }
+
+      // Validate the setup structure with proper optional chaining
+      if (!jsonData?.setup || typeof jsonData.setup !== 'object') {
+        throw new Error('Invalid loadout format: missing or invalid "setup" object');
+      }
+
+      if (!jsonData.setup.name || typeof jsonData.setup.name !== 'string') {
+        throw new Error('Invalid loadout format: missing or invalid "setup.name"');
+      }
+
+      if (!Array.isArray(jsonData.setup.inv)) {
+        throw new Error('Invalid loadout format: "setup.inv" must be an array');
+      }
+
+      if (!Array.isArray(jsonData.setup.eq)) {
+        throw new Error('Invalid loadout format: "setup.eq" must be an array');
       }
 
       // Validate array lengths
-      if (jsonData.setup.inv.length !== 28 || jsonData.setup.eq.length !== 14) {
-        throw new Error('Invalid loadout format: incorrect inventory or equipment size');
+      if (jsonData.setup.inv.length !== 28) {
+        throw new Error(`Invalid loadout format: inventory must have exactly 28 slots, got ${jsonData.setup.inv.length}`);
+      }
+
+      if (jsonData.setup.eq.length !== 14) {
+        throw new Error(`Invalid loadout format: equipment must have exactly 14 slots, got ${jsonData.setup.eq.length}`);
       }
 
       // Preserve existing category and tags if we're reparsing

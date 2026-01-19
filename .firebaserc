@@ -1,5 +1,15 @@
 {
   "projects": {
-    "default": "inventory-setups"
-  }
+    "default": "osrs-setups"
+  },
+  "targets": {
+    "osrs-setups": {
+      "hosting": {
+        "nc": [
+          "osrs-setups-nc"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
