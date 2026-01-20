@@ -41,6 +41,11 @@ export interface PaginationState {
   loading: boolean;
 }
 
+export interface GroupedLoadouts {
+  created: LoadoutData[];
+  liked: LoadoutData[];
+}
+
 const DEFAULT_FILTERS: LoadoutFilters = {
   search: '',
   categories: [],
@@ -48,7 +53,7 @@ const DEFAULT_FILTERS: LoadoutFilters = {
   sortBy: 'likes',
   sortDirection: 'desc',
   showPersonalOnly: false,
-  isPublic: true
+  isPublic: undefined // undefined means show all public + user's own (handled client-side)
 };
 
 const DEFAULT_PAGINATION: PaginationState = {
@@ -75,6 +80,14 @@ export class LoadoutService {
       this.resetPagination();
       this.loadInitialData();
     });
+
+    // Reload data when user auth state changes (e.g., anonymous -> Google sign in)
+    this.firebaseService.currentUser$.subscribe(() => {
+      // Small delay to ensure auth state is fully updated
+      setTimeout(() => {
+        this.loadInitialData();
+      }, 100);
+    });
   }
 
   private async loadInitialData() {
@@ -96,6 +109,24 @@ export class LoadoutService {
     const filters = this.filters.value;
     const { pageSize, lastVisible } = this.pagination.value;
 
+    // For default view (isPublic === undefined), we need to fetch all loadouts
+    // and filter client-side to show public OR user's own
+    // For "My Setups Only", fetch only user's loadouts
+    // For explicit isPublic filter, use it in the query
+    
+    let queryIsPublic: boolean | undefined = undefined;
+    if (filters.showPersonalOnly) {
+      // When showing personal only, don't filter by isPublic in query
+      // We'll show both public and private user loadouts
+      queryIsPublic = undefined;
+    } else if (typeof filters.isPublic === 'boolean') {
+      // Explicit filter
+      queryIsPublic = filters.isPublic;
+    } else {
+      // Default: fetch all (we'll filter client-side to show public OR user's own)
+      queryIsPublic = undefined;
+    }
+
     return {
       categories: filters.categories.length > 0 ? filters.categories : undefined,
       sortBy: filters.sortBy,
@@ -105,7 +136,7 @@ export class LoadoutService {
       searchTerm: filters.search || undefined,
       tags: filters.tags.length > 0 ? filters.tags : undefined,
       showPersonalOnly: filters.showPersonalOnly,
-      isPublic: filters.isPublic,
+      isPublic: queryIsPublic,
       type: filters.type
     };
   }
@@ -219,16 +250,58 @@ export class LoadoutService {
           });
         }
 
-        if (filters.showPersonalOnly && currentUser) {
-          filtered = filtered.filter(loadout => 
-            loadout.userId === currentUser.uid
-          );
-        }
-
-        if (typeof filters.isPublic === 'boolean') {
+        // Handle privacy filtering
+        if (filters.showPersonalOnly) {
+          // Show user's own loadouts AND liked loadouts
+          if (currentUser?.uid) {
+            // When showPersonalOnly is true, FirebaseService fetches both user's own and liked loadouts
+            // We separate them here: created = userId matches, liked = userId doesn't match
+            const created = filtered.filter(loadout => 
+              loadout.userId === currentUser.uid
+            );
+            const liked = filtered.filter(loadout => 
+              loadout.userId !== currentUser.uid
+            );
+            console.log('My Setups filter:', {
+              totalLoadouts: filtered.length,
+              created: created.length,
+              liked: liked.length,
+              userId: currentUser.uid
+            });
+            // Combine: created first, then liked
+            filtered = [...created, ...liked];
+          } else {
+            // No user: return empty array when filtering for personal only
+            console.log('My Setups filter: No current user');
+            filtered = [];
+          }
+        } else if (typeof filters.isPublic === 'boolean') {
+          // Explicit filter: show only public or only private
           filtered = filtered.filter(loadout => 
             loadout.isPublic === filters.isPublic
           );
+        } else {
+          // Default: show all public loadouts OR user's own loadouts (public + private)
+          if (currentUser?.uid) {
+            // Include public loadouts OR loadouts owned by current user (anonymous or otherwise)
+            const beforeFilter = filtered.length;
+            filtered = filtered.filter(loadout => 
+              loadout.isPublic === true || loadout.userId === currentUser.uid
+            );
+            if (beforeFilter !== filtered.length) {
+              console.log('Default filter applied:', {
+                before: beforeFilter,
+                after: filtered.length,
+                userId: currentUser.uid,
+                userOwned: filtered.filter(l => l.userId === currentUser.uid).length
+              });
+            }
+          } else {
+            // Not logged in: show only public
+            filtered = filtered.filter(loadout => 
+              loadout.isPublic === true
+            );
+          }
         }
 
         filtered.sort((a, b) => {
@@ -251,6 +324,89 @@ export class LoadoutService {
         });
 
         return filtered;
+      })
+    );
+  }
+
+  getGroupedLoadouts(): Observable<GroupedLoadouts> {
+    return combineLatest([
+      this.loadoutStateService.getLoadouts(),
+      this.filters,
+      this.firebaseService.getCurrentUser()
+    ]).pipe(
+      map(([loadouts, filters, currentUser]) => {
+        if (!filters.showPersonalOnly || !currentUser?.uid) {
+          return { created: [], liked: [] };
+        }
+
+        // Apply all filters except showPersonalOnly
+        let filtered = [...loadouts];
+
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          filtered = filtered.filter(loadout => 
+            loadout.setup.name.toLowerCase().includes(searchLower) ||
+            loadout.setup.notes?.toLowerCase().includes(searchLower) ||
+            loadout.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+          );
+        }
+
+        if (filters.categories.length > 0) {
+          filtered = filtered.filter(loadout => 
+            filters.categories.includes(loadout.category)
+          );
+        }
+
+        if (filters.tags.length > 0) {
+          filtered = filtered.filter(loadout =>
+            filters.tags.every(tag => loadout.tags?.includes(tag))
+          );
+        }
+
+        if (filters.type) {
+          filtered = filtered.filter(loadout => {
+            if (filters.type === 'inventory') {
+              return !loadout.type || loadout.type === 'inventory';
+            }
+            if (filters.type === 'banktaglayout') {
+              return loadout.type === 'banktag' || loadout.type === 'banktaglayout';
+            }
+            return loadout.type === filters.type;
+          });
+        }
+
+        // Separate created vs liked
+        const created = filtered.filter(loadout => 
+          loadout.userId === currentUser.uid
+        );
+        const liked = filtered.filter(loadout => 
+          loadout.userId !== currentUser.uid
+        );
+
+        // Sort each group
+        const sortFn = (a: LoadoutData, b: LoadoutData) => {
+          let comparison = 0;
+          switch (filters.sortBy) {
+            case 'date': {
+              comparison = this.getTimestamp(b.createdAt) - this.getTimestamp(a.createdAt);
+              break;
+            }
+            case 'likes': {
+              comparison = (b.likes || 0) - (a.likes || 0);
+              break;
+            }
+            case 'views': {
+              comparison = (b.views || 0) - (a.views || 0);
+              break;
+            }
+          }
+          return filters.sortDirection === 'desc' ? comparison : -comparison;
+        };
+
+        created.sort(sortFn);
+        liked.sort(sortFn);
+
+        return { created, liked };
       })
     );
   }
@@ -290,6 +446,13 @@ export class LoadoutService {
         likes: 0,
         views: 0
       };
+
+      console.log('✅ Creating loadout:', {
+        id: loadoutId,
+        name: loadout.setup.name,
+        userId: userId,
+        isPublic: loadoutWithTimestamps.isPublic
+      });
 
       // First, add the new loadout to the current list with client-side timestamps
       const newLoadout = {
@@ -597,5 +760,53 @@ export class LoadoutService {
 
   resetFilters() {
     this.filters.next(DEFAULT_FILTERS);
+  }
+
+  async updateLoadoutPrivacy(loadoutId: string, isPublic: boolean): Promise<void> {
+    try {
+      const db = this.firebaseService.getFirestore();
+      const userId = await this.firebaseService.getCurrentUserId();
+      if (!userId) throw new Error('Must be logged in to update loadout privacy');
+
+      const loadoutRef = this.firebaseService.doc(`loadouts/${loadoutId}`);
+      const loadoutSnap = await getDoc(loadoutRef);
+      
+      if (!loadoutSnap.exists()) {
+        throw new Error('Loadout not found');
+      }
+
+      const loadoutData = loadoutSnap.data() as LoadoutData;
+      if (loadoutData.userId !== userId) {
+        throw new Error('You do not have permission to update this loadout');
+      }
+
+      // Update the loadout
+      await runTransaction(db, async (transaction) => {
+        transaction.update(loadoutRef, {
+          isPublic,
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      // Update local state
+      const currentLoadouts = this.loadoutStateService.getCurrentLoadouts();
+      const updatedLoadouts = currentLoadouts.map(loadout => {
+        if (loadout.id === loadoutId) {
+          return {
+            ...loadout,
+            isPublic,
+            updatedAt: Timestamp.fromDate(new Date())
+          };
+        }
+        return loadout;
+      });
+      this.loadoutStateService.updateLoadouts(updatedLoadouts);
+
+      // Refresh from server to ensure consistency
+      await this.firebaseService.refreshLoadouts();
+    } catch (error) {
+      console.error('Error updating loadout privacy:', error);
+      throw error;
+    }
   }
 } 

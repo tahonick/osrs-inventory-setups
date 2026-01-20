@@ -1,10 +1,10 @@
 <div class="home-container">
 
   <!-- Alert Banner -->
-  <div class="alert-banner warning">
+  <!-- <div class="alert-banner warning">
     <mat-icon>warning</mat-icon>
     <span><a href="https://runelite.net/plugin-hub/show/bank-tag-layouts" target="_blank">Bank Tag Layouts</a> support is currently in beta. Please report any issues importing/exporting on <a href="https://github.com/patrickrottman/osrs-inventory-setups/issues" target="_blank">GitHub</a>.</span>
-  </div>
+  </div> -->
   <!-- How-to Banner -->
   <div class="info-banner" *ngIf="showInstructions">
     <div class="banner-content">
@@ -94,16 +94,28 @@
             <mat-divider></mat-divider>
 
             <!-- Tags Section -->
-            <div class="filter-section" *ngIf="availableTags$ | async as tags">
-              <h3>Tags</h3>
-              <mat-selection-list [formControl]="selectedTags" class="filter-list">
-                <mat-list-option *ngFor="let tag of tags" [value]="tag">
-                  {{ tag }}
-                </mat-list-option>
-              </mat-selection-list>
-            </div>
+        <div class="filter-section" *ngIf="availableTags$ | async as tags">
+          <h3>Tags</h3>
+          <mat-selection-list [formControl]="selectedTags" class="filter-list">
+            <mat-list-option *ngFor="let tag of tags" [value]="tag">
+              {{ tag }}
+            </mat-list-option>
+          </mat-selection-list>
+        </div>
 
-            <!-- Clear Filters -->
+        <mat-divider></mat-divider>
+
+        <!-- My Setups Only Toggle -->
+        <div class="filter-section" *ngIf="(isLoggedIn$ | async) === true">
+          <h3>Visibility</h3>
+          <div class="toggle-container">
+            <mat-slide-toggle [formControl]="showMySetupsOnly" color="primary">
+              <span>My Setups Only</span>
+            </mat-slide-toggle>
+          </div>
+        </div>
+
+        <!-- Clear Filters -->
             <div class="filter-actions">
               <button mat-stroked-button
                       (click)="clearFilters(); $event.stopPropagation()"
@@ -131,6 +143,17 @@
             <mat-icon>{{ getSortIcon() }}</mat-icon>
           </button>
         </div>
+
+        <!-- My Setups Only Toggle -->
+        <button *ngIf="(isLoggedIn$ | async) === true"
+                mat-stroked-button 
+                [class.active]="showMySetupsOnly.value"
+                (click)="showMySetupsOnly.setValue(!showMySetupsOnly.value)"
+                class="my-setups-toggle"
+                matTooltip="Show only my setups">
+          <mat-icon>{{ showMySetupsOnly.value ? 'person' : 'people' }}</mat-icon>
+          <span class="desktop-only">My Setups</span>
+        </button>
 
         <button *ngIf="hasActiveFilters()" 
                 mat-stroked-button 
@@ -230,6 +253,16 @@
             </mat-list-option>
           </mat-selection-list>
         </div>
+
+        <!-- My Setups Only Toggle (Mobile) -->
+        <div class="filter-section" *ngIf="(isLoggedIn$ | async) === true">
+          <h3>Visibility</h3>
+          <div class="toggle-container">
+            <mat-slide-toggle [formControl]="showMySetupsOnly" color="primary">
+              <span>My Setups Only</span>
+            </mat-slide-toggle>
+          </div>
+        </div>
       </div>
 
       <div class="search-footer">
@@ -245,10 +278,54 @@
 
   <!-- Loadouts Grid -->
   <div class="loadouts-grid">
-    <mat-card *ngFor="let loadout of loadouts$ | async" 
-              class="loadout-card"
-              [class.bank-tag-card]="isLayoutType(loadout)"
-              (click)="openLoadout(loadout)">
+    <!-- Show grouped loadouts when "My Setups Only" is enabled -->
+    <ng-container *ngIf="(showMySetupsOnly.value) && (isLoggedIn$ | async); else regularView">
+      <ng-container *ngIf="groupedLoadouts$ | async as grouped">
+        <!-- Created Setups Section -->
+        <div *ngIf="grouped.created.length > 0" class="loadout-section">
+          <h2 class="section-title">
+            <mat-icon>create</mat-icon>
+            <span>Setups I Created</span>
+          </h2>
+          <mat-card *ngFor="let loadout of grouped.created" 
+                    class="loadout-card"
+                    [class.bank-tag-card]="isLayoutType(loadout)"
+                    (click)="openLoadout(loadout)">
+            <ng-container *ngTemplateOutlet="loadoutCardTemplate; context: { $implicit: loadout }"></ng-container>
+          </mat-card>
+        </div>
+
+        <!-- Divider between sections -->
+        <mat-divider *ngIf="grouped.created.length > 0 && grouped.liked.length > 0" class="section-divider"></mat-divider>
+
+        <!-- Liked Setups Section -->
+        <div *ngIf="grouped.liked.length > 0" class="loadout-section">
+          <h2 class="section-title">
+            <mat-icon>favorite</mat-icon>
+            <span>Favorite Setups by Other Users</span>
+          </h2>
+          <mat-card *ngFor="let loadout of grouped.liked" 
+                    class="loadout-card"
+                    [class.bank-tag-card]="isLayoutType(loadout)"
+                    (click)="openLoadout(loadout)">
+            <ng-container *ngTemplateOutlet="loadoutCardTemplate; context: { $implicit: loadout }"></ng-container>
+          </mat-card>
+        </div>
+      </ng-container>
+    </ng-container>
+
+    <!-- Regular view (all loadouts) -->
+    <ng-template #regularView>
+      <mat-card *ngFor="let loadout of loadouts$ | async" 
+                class="loadout-card"
+                [class.bank-tag-card]="isLayoutType(loadout)"
+                (click)="openLoadout(loadout)">
+        <ng-container *ngTemplateOutlet="loadoutCardTemplate; context: { $implicit: loadout }"></ng-container>
+      </mat-card>
+    </ng-template>
+
+    <!-- Loadout Card Template -->
+    <ng-template #loadoutCardTemplate let-loadout>
       <mat-card-header>
         <div class="header-content">
           <div class="title">
@@ -306,7 +383,7 @@
           </div>
         </div>
       </mat-card-footer>
-    </mat-card>
+    </ng-template>
   </div>
 
   <!-- Loading State -->
@@ -315,9 +392,24 @@
   </div>
 
   <!-- No Results -->
-  <div class="no-results" *ngIf="(loadouts$ | async)?.length === 0 && !(paginationState$ | async)?.loading">
-    <mat-icon>search_off</mat-icon>
-    <p>No loadouts found</p>
-    <button mat-stroked-button color="primary" (click)="clearFilters()" [disabled]="!hasActiveFilters()">Clear Filters</button>
-  </div>
+  <ng-container *ngIf="showMySetupsOnly.value && (isLoggedIn$ | async); else regularNoResults">
+    <ng-container *ngIf="groupedLoadouts$ | async as grouped">
+      <div class="no-results" *ngIf="
+        (grouped.created.length === 0 && grouped.liked.length === 0)
+        && !(paginationState$ | async)?.loading">
+        <mat-icon>search_off</mat-icon>
+        <p>No loadouts found</p>
+        <button mat-stroked-button color="primary" (click)="clearFilters()" [disabled]="!hasActiveFilters()">Clear Filters</button>
+      </div>
+    </ng-container>
+  </ng-container>
+  <ng-template #regularNoResults>
+    <div class="no-results" *ngIf="
+      (loadouts$ | async)?.length === 0 
+      && !(paginationState$ | async)?.loading">
+      <mat-icon>search_off</mat-icon>
+      <p>No loadouts found</p>
+      <button mat-stroked-button color="primary" (click)="clearFilters()" [disabled]="!hasActiveFilters()">Clear Filters</button>
+    </div>
+  </ng-template>
 </div> 

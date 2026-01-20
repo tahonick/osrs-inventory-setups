@@ -5,7 +5,7 @@
         <mat-icon>inventory_2</mat-icon>
         <div class="title-group">
           <h1>Inventory Setups</h1>
-          <span class="subtitle">OSRS Community Loadout Manager</span>
+          <span class="subtitle">OSRS Community Loadout Viewer</span>
         </div>
       </div>
     </div>
@@ -22,7 +22,7 @@
         <mat-icon>group</mat-icon>
         <div class="stat-info">
           <div class="stat-value">{{ (stats$ | async)?.totalUsers | number }}</div>
-          <div class="stat-label">Users</div>
+          <div class="stat-label">Visits</div>
         </div>
       </div>
       <div class="stat">
@@ -47,7 +47,7 @@
           <mat-icon>group</mat-icon>
           <div class="stat-info">
             <div class="stat-value placeholder"></div>
-            <div class="stat-label">Users</div>
+            <div class="stat-label">Visits</div>
           </div>
         </div>
         <div class="stat">
@@ -60,8 +60,37 @@
       </div>
     </ng-template>
 
-    <button mat-icon-button (click)="toggleTheme()" class="theme-toggle">
-      <mat-icon>{{ (isDarkTheme$ | async) ? 'dark_mode' : 'light_mode' }}</mat-icon>
-    </button>
+    <div class="header-actions">
+      <ng-container *ngIf="currentUser$ | async as user; else signedOut">
+        <!-- Show user info when signed in with Google -->
+        <div class="user-info" *ngIf="!user.isAnonymous">
+          <mat-icon class="user-icon">account_circle</mat-icon>
+          <span class="user-name">{{ user.displayName || user.email }}</span>
+        </div>
+        <button
+          mat-stroked-button
+          class="auth-button"
+          [class.signed-in]="!user.isAnonymous"
+          (click)="user.isAnonymous ? signInWithGoogle() : signOut()"
+          [matTooltip]="user.isAnonymous ? 'Sign in with Google' : 'Sign out'">
+          <mat-icon>{{ user.isAnonymous ? 'login' : 'logout' }}</mat-icon>
+          <span class="desktop-only">{{ user.isAnonymous ? 'Sign in' : 'Sign out' }}</span>
+        </button>
+      </ng-container>
+      <ng-template #signedOut>
+        <button
+          mat-stroked-button
+          class="auth-button"
+          (click)="signInWithGoogle()"
+          matTooltip="Sign in with Google">
+          <mat-icon>login</mat-icon>
+          Sign in
+        </button>
+      </ng-template>
+
+      <button mat-icon-button (click)="toggleTheme()" class="theme-toggle" matTooltip="Toggle theme">
+        <mat-icon>{{ (isDarkTheme$ | async) ? 'dark_mode' : 'light_mode' }}</mat-icon>
+      </button>
+    </div>
   </div>
 </header> 

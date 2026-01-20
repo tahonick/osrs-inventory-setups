@@ -15,13 +15,14 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatListModule } from '@angular/material/list';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { FormControl } from '@angular/forms';
 import { Observable, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Router } from '@angular/router';
 
 import { FirebaseService } from '../../core/services/firebase.service';
-import { LoadoutService, PaginationState } from '../../core/services/loadout.service';
+import { LoadoutService, PaginationState, GroupedLoadouts } from '../../core/services/loadout.service';
 import { LoadoutData, Category } from '../../shared/models/inventory.model';
 import { LoadoutModalComponent } from '../loadout/components/loadout-modal/loadout-modal.component';
 import { LoadoutUploaderDialogComponent } from '../loadout/components/loadout-uploader/loadout-uploader-dialog.component';
@@ -54,6 +55,7 @@ import { BankTagLayout } from '../../shared/models/bank-tag-layout.model';
     MatDividerModule,
     MatProgressSpinnerModule,
     MatListModule,
+    MatSlideToggleModule,
     FirebaseDatePipe,
     EquipmentSlotsComponent,
     BankTagLayoutGridComponent
@@ -62,6 +64,7 @@ import { BankTagLayout } from '../../shared/models/bank-tag-layout.model';
 })
 export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   loadouts$: Observable<LoadoutData[]>;
+  groupedLoadouts$: Observable<GroupedLoadouts>;
   availableTags$: Observable<string[]>;
   isLoggedIn$: Observable<boolean>;
   paginationState$: Observable<PaginationState>;
@@ -91,6 +94,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   ];
 
   selectedType = new FormControl<'inventory' | 'banktag' | 'banktaglayout' | ''>('');
+  showMySetupsOnly = new FormControl(false);
 
   readonly loadoutTypes: { value: 'inventory' | 'banktag' | 'banktaglayout'; label: string }[] = [
     { value: 'inventory', label: 'Inventory Setups' },
@@ -104,7 +108,8 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     private firebaseService: FirebaseService,
     private router: Router
   ) {
-    this.loadouts$ = this.loadoutService.getLoadouts();
+    this.loadouts$ = this.loadoutService.getFilteredLoadouts();
+    this.groupedLoadouts$ = this.loadoutService.getGroupedLoadouts();
     this.availableTags$ = this.loadoutService.getAllTags();
     this.isLoggedIn$ = this.firebaseService.isLoggedIn$;
     this.paginationState$ = this.loadoutService.getPaginationState();
@@ -113,6 +118,13 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.subscriptions.add(
       this.selectedType.valueChanges.subscribe(() => {
         this.updateFilters();
+      })
+    );
+
+    // Subscribe to "My Setups Only" toggle
+    this.subscriptions.add(
+      this.showMySetupsOnly.valueChanges.subscribe(value => {
+        this.loadoutService.updateFilters({ showPersonalOnly: value || false });
       })
     );
   }
@@ -211,7 +223,8 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
       (this.selectedTags.value?.length ?? 0) > 0 ||
       !!this.selectedType.value ||
       this.sortControl.value !== 'likes' ||
-      this.sortDirectionControl.value !== 'desc'
+      this.sortDirectionControl.value !== 'desc' ||
+      (this.showMySetupsOnly.value ?? false)
     );
   }
 
@@ -222,6 +235,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedType.setValue('');
     this.sortControl.setValue('likes');
     this.sortDirectionControl.setValue('desc');
+    this.showMySetupsOnly.setValue(false);
     this.loadoutService.resetFilters();
     
     if (this.showMobileSearch) {

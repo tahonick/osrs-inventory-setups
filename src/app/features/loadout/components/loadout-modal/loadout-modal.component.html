@@ -39,6 +39,12 @@
       </button>
       <button *ngIf="isOwner"
               mat-icon-button
+              [matTooltip]="isPublic ? 'Make Private' : 'Make Public'"
+              (click)="togglePrivacy()">
+        <mat-icon>{{ isPublic ? 'public' : 'lock' }}</mat-icon>
+      </button>
+      <button *ngIf="isOwner"
+              mat-icon-button
               matTooltip="Delete Loadout"
               color="warn"
               (click)="deleteLoadout()">
@@ -63,6 +69,10 @@
         <button mat-menu-item (click)="copyLoadout()">
           <mat-icon>content_copy</mat-icon>
           <span>Copy Loadout</span>
+        </button>
+        <button mat-menu-item *ngIf="isOwner" (click)="togglePrivacy()">
+          <mat-icon>{{ isPublic ? 'public' : 'lock' }}</mat-icon>
+          <span>{{ isPublic ? 'Make Private' : 'Make Public' }}</span>
         </button>
         <button mat-menu-item *ngIf="isOwner" (click)="deleteLoadout()">
           <mat-icon color="warn">delete</mat-icon>

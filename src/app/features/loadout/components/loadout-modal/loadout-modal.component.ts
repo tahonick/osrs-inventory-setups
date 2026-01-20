@@ -63,6 +63,7 @@ export class LoadoutModalComponent {
   isOwner = false;
   isLoggedIn$: Observable<boolean>;
   hasLiked = false;
+  isPublic = true;
 
   constructor(
     public dialogRef: MatDialogRef<LoadoutModalComponent>,
@@ -76,6 +77,7 @@ export class LoadoutModalComponent {
   ) {
     this.isLoggedIn$ = this.firebaseService.isLoggedIn$;
     this.isOwner = this.firebaseService.isLoadoutOwner(this.data);
+    this.isPublic = this.data.isPublic ?? true;
     this.checkLikeStatus();
   }
 
@@ -303,6 +305,32 @@ export class LoadoutModalComponent {
     }
 
     return layout;
+  }
+
+  async togglePrivacy(): Promise<void> {
+    if (!this.data.id) {
+      this.snackBar.open('Loadout ID is missing', 'Close', { duration: 3000 });
+      return;
+    }
+
+    try {
+      const newPrivacy = !this.isPublic;
+      await this.loadoutService.updateLoadoutPrivacy(this.data.id, newPrivacy);
+      this.isPublic = newPrivacy;
+      this.data.isPublic = newPrivacy;
+      
+      this.snackBar.open(
+        newPrivacy ? 'Loadout is now public' : 'Loadout is now private',
+        'Close',
+        { duration: 3000 }
+      );
+    } catch (error) {
+      console.error('Error updating privacy:', error);
+      this.snackBar.open('Failed to update privacy', 'Close', {
+        duration: 3000,
+        panelClass: ['error-snackbar']
+      });
+    }
   }
 
   close(): void {
