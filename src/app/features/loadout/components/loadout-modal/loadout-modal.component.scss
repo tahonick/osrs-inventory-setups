@@ -257,7 +257,58 @@
           flex-direction: column;
           gap: 0.5rem;
 
+          .tag-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+          }
+
+          .tag-edit-instructions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+            border-radius: 8px;
+            font-size: 13px;
+
+            mat-icon {
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
+            }
+          }
+
+          .add-tags-btn {
+            align-self: flex-start;
+            text-transform: none;
+            
+            mat-icon {
+              margin-right: 4px;
+            }
+          }
+
+          .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+          }
+
           .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            background: var(--surface-dim);
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--on-surface);
+            border: 1px solid var(--outline-variant);
+            gap: 4px;
+
             .tag-label {
               background: var(--mat-dialog-container-background-color);
               border: 1px solid var(--mat-divider-color);
@@ -267,6 +318,46 @@
               font-size: 0.85rem;
               display: inline-block;
               opacity: 0.87;
+            }
+
+            .tag-remove {
+              width: 20px;
+              height: 20px;
+              padding: 0;
+              margin-left: 4px;
+
+              mat-icon {
+                font-size: 16px;
+                width: 16px;
+                height: 16px;
+                line-height: 16px;
+              }
+            }
+          }
+
+          .tag-input {
+            display: inline-flex;
+            margin-top: -4px;
+            max-width: 250px;
+            
+            ::ng-deep {
+              .mat-mdc-form-field-infix {
+                padding-top: 12px;
+                padding-bottom: 12px;
+                min-height: 40px;
+              }
+
+              .mat-mdc-text-field-wrapper {
+                padding-bottom: 0;
+              }
+
+              input {
+                font-size: 13px;
+              }
+              
+              .mat-mdc-form-field-icon-suffix {
+                padding-left: 4px;
+              }
             }
           }
         }
@@ -484,6 +575,82 @@
                   font-size: 18px;
                   width: 18px;
                   height: 18px;
+                }
+              }
+            }
+          }
+
+          &.metadata-section {
+            .metadata-content {
+              display: flex;
+              flex-direction: column;
+              gap: 1.25rem;
+
+              .category-row, .tags-row {
+                display: flex;
+                align-items: flex-start;
+                gap: 1rem;
+
+                label {
+                  font-weight: 500;
+                  min-width: 80px;
+                  padding-top: 8px;
+                  color: var(--mat-dialog-container-text-color);
+                  opacity: 0.7;
+                }
+
+                .category-field {
+                  max-width: 200px;
+                  
+                  ::ng-deep .mat-mdc-text-field-wrapper {
+                    background: rgba(0, 0, 0, 0.2);
+                  }
+                }
+
+                .category-badge {
+                  background: var(--mat-primary-color);
+                  color: var(--mat-primary-contrast-color);
+                  padding: 6px 14px;
+                  border-radius: 16px;
+                  font-size: 0.9rem;
+                  font-weight: 500;
+                  display: inline-block;
+                  margin-top: 4px;
+                }
+
+                .tags-editor-wrapper {
+                  flex: 1;
+                  display: flex;
+                  gap: 1rem;
+                  align-items: flex-start;
+
+                  app-tag-editor {
+                    flex: 1;
+                  }
+
+                  .tag-action-btn {
+                    text-transform: none;
+                    flex-shrink: 0;
+                  }
+                }
+              }
+
+              .edit-help-text {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 10px 14px;
+                background: var(--primary-container);
+                color: var(--on-primary-container);
+                border-radius: 8px;
+                font-size: 0.9rem;
+                margin-left: 96px;
+
+                mat-icon {
+                  font-size: 20px;
+                  width: 20px;
+                  height: 20px;
+                  flex-shrink: 0;
                 }
               }
             }

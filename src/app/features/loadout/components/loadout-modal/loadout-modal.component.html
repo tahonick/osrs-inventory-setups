@@ -4,27 +4,6 @@
       <mat-icon>inventory_2</mat-icon>
       <span>{{ data.setup.name }}</span>
     </h2>
-    <!-- Desktop Metadata -->
-    <div class="metadata-hover desktop-only" *ngIf="data.tags?.length || data.category !== 'Custom' || isLayoutType">
-      <button class="info-button" mat-icon-button>
-        <mat-icon>info</mat-icon>
-      </button>
-      <div class="metadata-card">
-        <div class="type-indicator">
-          <mat-icon>{{ isLayoutType ? 'grid_on' : 'inventory_2' }}</mat-icon>
-          <span>{{ isLayoutType ? (data.type === 'banktag' ? 'Bank Tag' : 'Bank Tag Layout') : 'Inventory Setup' }}</span>
-        </div>
-        <div class="metadata-divider"></div>
-        <div class="category-tag" *ngIf="data.category !== 'Custom'">
-          <span class="category-label">{{ data.category }}</span>
-        </div>
-        <div class="tag-list" *ngIf="data.tags?.length">
-          <div class="tag" *ngFor="let tag of data.tags">
-            <span class="tag-label">{{ tag }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
     <!-- Desktop Actions -->
     <div class="header-actions desktop-actions">
       <button mat-icon-button 
@@ -88,25 +67,6 @@
   </div>
 
   <div class="content-wrapper">
-    <!-- Mobile Metadata Section -->
-    <div class="metadata-hover mobile-only" *ngIf="data.tags?.length || data.category !== 'Custom' || isLayoutType">
-      <div class="metadata-card">
-        <div class="type-indicator">
-          <mat-icon>{{ isLayoutType ? 'grid_on' : 'inventory_2' }}</mat-icon>
-          <span>{{ isLayoutType ? (data.type === 'banktag' ? 'Bank Tag' : 'Bank Tag Layout') : 'Inventory Setup' }}</span>
-        </div>
-        <div class="metadata-divider"></div>
-        <div class="category-tag" *ngIf="data.category !== 'Custom'">
-          <span class="category-label">{{ data.category }}</span>
-        </div>
-        <div class="tag-list" *ngIf="data.tags?.length">
-          <div class="tag" *ngFor="let tag of data.tags">
-            <span class="tag-label">{{ tag }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="preview-section">
       <div class="preview-content">
         <!-- Show for inventory setup type -->
@@ -128,7 +88,7 @@
             <div class="section">
               <div class="section-title">
                 <mat-icon>grid_view</mat-icon>
-                Storage Items
+                Inventory
               </div>
               <div class="inventory-container">
                 <div class="inventory-wrapper">
@@ -141,6 +101,59 @@
                   *ngIf="data.setup.rp?.length"
                   [runes]="data.setup.rp || []">
                 </app-rune-pouch>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category & Tags Section (inline, always visible) -->
+          <div class="section metadata-section">
+            <div class="metadata-content">
+              <!-- Category -->
+              <div class="category-row">
+                <label>Category:</label>
+                <mat-form-field *ngIf="isLoggedIn$ | async; else readonlyCategory" appearance="outline" class="category-field">
+                  <mat-select [(value)]="data.category" (selectionChange)="onCategoryChanged($event.value)">
+                    <mat-option value="Combat">Combat</mat-option>
+                    <mat-option value="Skilling">Skilling</mat-option>
+                    <mat-option value="PvP">PvP</mat-option>
+                    <mat-option value="Other">Other</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <ng-template #readonlyCategory>
+                  <span class="category-badge">{{ data.category || 'Other' }}</span>
+                </ng-template>
+              </div>
+
+              <!-- Tags Editor (Reusable Component!) -->
+              <div class="tags-row">
+                <label>Tags:</label>
+                <div class="tags-editor-wrapper">
+                  <app-tag-editor
+                    *ngIf="isLoggedIn$ | async; else readonlyTags"
+                    [tags]="data.tags || []"
+                    [readonly]="false"
+                    [canRemove]="canRemoveTag()"
+                    [label]="'Tags (type to add custom tags like \'ToB\', \'Vorkath\')'"
+                    [placeholder]="'Add tag...'"
+                    (tagsChange)="onTagsChanged($event)">
+                  </app-tag-editor>
+                  
+                  <ng-template #readonlyTags>
+                    <div class="readonly-tags">
+                      <span *ngIf="!data.tags?.length" class="no-tags">No tags yet</span>
+                      <mat-chip-set *ngIf="data.tags?.length">
+                        <mat-chip *ngFor="let tag of data.tags">{{ tag }}</mat-chip>
+                      </mat-chip-set>
+                    </div>
+                  </ng-template>
+                </div>
+              </div>
+
+              <!-- Help text -->
+              <div *ngIf="isLoggedIn$ | async" class="edit-help-text">
+                <mat-icon>info_outline</mat-icon>
+                <span *ngIf="canRemoveTag()">Community tagging! Anyone can add tags. You can remove tags (you own this).</span>
+                <span *ngIf="!canRemoveTag()">Community tagging! Add tags to help others find this setup.</span>
               </div>
             </div>
           </div>

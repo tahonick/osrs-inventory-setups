@@ -1,0 +1,196 @@
+<div class="diff-viewer" *ngIf="match">
+  <!-- Header -->
+  <div class="diff-header">
+    <h3>Match {{ currentIndex + 1 }} of {{ totalMatches }}: "{{ match.existingSetup.setup.name }}"</h3>
+    <div class="similarity-badge" [class.high-similarity]="match.similarityScore >= 90">
+      {{ match.similarityScore }}% similar
+    </div>
+  </div>
+
+  <!-- Side-by-side comparison -->
+  <div class="comparison-container">
+    <!-- Existing Setup (Left) -->
+    <mat-card class="setup-card existing-setup">
+      <mat-card-header>
+        <mat-card-title>Your Current Setup</mat-card-title>
+        <mat-card-subtitle>
+          Last updated: {{ formatDate(match.existingSetup.updatedAt) }}
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <!-- Equipment Grid -->
+        <div class="equipment-section">
+          <h4>Equipment</h4>
+          <div class="equipment-grid">
+            <div *ngFor="let item of match.existingSetup.setup.eq; let i = index"
+                 class="item-slot equipment-slot"
+                 [class]="getExistingSlotClass(item, 'equipment')"
+                 [matTooltip]="item ? getItemName(item.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="item" 
+                   [src]="getItemImageUrl(item.id)" 
+                   [alt]="getItemName(item.id)"
+                   class="item-image">
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Grid -->
+        <div class="inventory-section">
+          <h4>Inventory</h4>
+          <div class="inventory-grid">
+            <div *ngFor="let item of match.existingSetup.setup.inv; let i = index"
+                 class="item-slot inventory-slot"
+                 [class]="getExistingSlotClass(item, 'inventory')"
+                 [matTooltip]="item ? getItemName(item.id) + (item.q && item.q > 1 ? ' x' + item.q : '') : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="item" 
+                   [src]="getItemImageUrl(item.id)" 
+                   [alt]="getItemName(item.id)"
+                   class="item-image">
+              <span *ngIf="item && item.q && item.q > 1" class="quantity">{{ item.q }}</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- New Setup (Right) -->
+    <mat-card class="setup-card new-setup">
+      <mat-card-header>
+        <mat-card-title>New Import</mat-card-title>
+        <mat-card-subtitle>
+          From: {{ match.newSetup.metadata.fileName }}
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <!-- Equipment Grid -->
+        <div class="equipment-section">
+          <h4>Equipment</h4>
+          <div class="equipment-grid">
+            <div *ngFor="let item of match.newSetup.setup.eq; let i = index"
+                 class="item-slot equipment-slot"
+                 [class]="getNewSlotClass(item, 'equipment')"
+                 [matTooltip]="item ? getItemName(item.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="item" 
+                   [src]="getItemImageUrl(item.id)" 
+                   [alt]="getItemName(item.id)"
+                   class="item-image">
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Grid -->
+        <div class="inventory-section">
+          <h4>Inventory</h4>
+          <div class="inventory-grid">
+            <div *ngFor="let item of match.newSetup.setup.inv; let i = index"
+                 class="item-slot inventory-slot"
+                 [class]="getNewSlotClass(item, 'inventory')"
+                 [matTooltip]="item ? getItemName(item.id) + (item.q && item.q > 1 ? ' x' + item.q : '') : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="item" 
+                   [src]="getItemImageUrl(item.id)" 
+                   [alt]="getItemName(item.id)"
+                   class="item-image">
+              <span *ngIf="item && item.q && item.q > 1" class="quantity">{{ item.q }}</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Difference Summary -->
+  <div class="difference-summary">
+    <mat-icon>info</mat-icon>
+    <span class="summary-text">
+      Differences: {{ match.differences.overallDifferences.join(', ') }}
+    </span>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-box diff-added"></div>
+      <span>Added</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box diff-removed"></div>
+      <span>Removed</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box diff-quantity"></div>
+      <span>Qty Changed</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box diff-identical"></div>
+      <span>Identical</span>
+    </div>
+  </div>
+
+  <!-- Tag Merge Notice -->
+  <div class="tag-merge-notice" *ngIf="hasTagDifferences()">
+    <mat-icon>label</mat-icon>
+    <span>
+      <strong>Tag Info:</strong> If you choose "Use New", your existing tags will be merged with the new ones (no tags lost).
+    </span>
+  </div>
+
+  <!-- Action Selection -->
+  <div class="action-selection">
+    <h4>What would you like to do?</h4>
+    <mat-radio-group [(ngModel)]="selectedAction" class="action-radio-group">
+      <mat-radio-button value="skip" class="action-option">
+        <div class="action-content">
+          <mat-icon>skip_next</mat-icon>
+          <div class="action-text">
+            <strong>Keep Existing</strong>
+            <small>Skip this import, keep your current setup</small>
+          </div>
+        </div>
+      </mat-radio-button>
+
+      <mat-radio-button value="replace" class="action-option" [disabled]="!canReplace()">
+        <div class="action-content">
+          <mat-icon>swap_horiz</mat-icon>
+          <div class="action-text">
+            <strong>Use New</strong>
+            <small *ngIf="canReplace()">Replace items/equipment with new import (tags will be merged)</small>
+            <small *ngIf="!canReplace()" class="disabled-text">⚠️ Cannot replace - you don't own this setup</small>
+          </div>
+        </div>
+      </mat-radio-button>
+
+      <mat-radio-button value="keep_both" class="action-option">
+        <div class="action-content">
+          <mat-icon>content_copy</mat-icon>
+          <div class="action-text">
+            <strong>Keep Both</strong>
+            <small>Import as a new setup (will rename to avoid conflict)</small>
+          </div>
+        </div>
+      </mat-radio-button>
+    </mat-radio-group>
+  </div>
+
+  <!-- Navigation -->
+  <div class="navigation-buttons">
+    <button mat-button (click)="onPrevious()" [disabled]="currentIndex === 0">
+      <mat-icon>chevron_left</mat-icon>
+      Previous
+    </button>
+    
+    <div class="page-indicator">
+      {{ currentIndex + 1 }} / {{ totalMatches }}
+    </div>
+
+    <button mat-button (click)="onNext()" [disabled]="currentIndex === totalMatches - 1">
+      Next
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</div>

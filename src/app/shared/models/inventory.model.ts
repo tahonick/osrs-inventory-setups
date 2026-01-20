@@ -30,6 +30,15 @@ export interface LoadoutJson {
   tags?: string[];
 }
 
+// Sync metadata for tracking import source and batch information
+export interface SyncMetadata {
+  source: 'manual' | 'bulk_import' | 'file_upload';
+  importDate: Timestamp;
+  originalFileName?: string;
+  batchId?: string; // Link setups imported together
+  duplicateOf?: string; // Reference to original if duplicate was kept
+}
+
 // The full Firestore document data
 export interface LoadoutData {
   id: string;
@@ -46,10 +55,11 @@ export interface LoadoutData {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   originalFormat?: string;  // Add originalFormat property
+  syncMetadata?: SyncMetadata;
 }
 
 export interface Category {
-  type: 'Boss' | 'Skill' | 'Custom';
+  type: 'Combat' | 'Skilling' | 'PvP' | 'Other';
   name: string;
 }
 

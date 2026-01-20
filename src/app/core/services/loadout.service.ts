@@ -809,4 +809,237 @@ export class LoadoutService {
       throw error;
     }
   }
+
+  /**
+   * Update loadout tags (community tagging - anyone logged in can add tags)
+   */
+  async updateLoadoutCategory(loadoutId: string, category: string): Promise<void> {
+    try {
+      const db = this.firebaseService.getFirestore();
+      const userId = await this.firebaseService.getCurrentUserId();
+      if (!userId) throw new Error('Must be logged in to update category');
+
+      const loadoutRef = this.firebaseService.doc(`loadouts/${loadoutId}`);
+
+      // Update the loadout (ownership check handled by Firestore rules)
+      await runTransaction(db, async (transaction) => {
+        transaction.update(loadoutRef, {
+          category,
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      // Update local state and refresh
+      const currentLoadouts = this.loadoutStateService.getCurrentLoadouts();
+      const updatedLoadouts = currentLoadouts.map(loadout => {
+        if (loadout.id === loadoutId) {
+          return { ...loadout, category: category as 'Combat' | 'Skilling' | 'PvP' | 'Other' };
+        }
+        return loadout;
+      });
+      this.loadoutStateService.updateLoadouts(updatedLoadouts);
+      await this.firebaseService.refreshLoadouts();
+
+      console.log(`Updated loadout ${loadoutId} category:`, category);
+    } catch (error) {
+      console.error('Error updating loadout category:', error);
+      throw error;
+    }
+  }
+
+  async updateLoadoutTags(loadoutId: string, tags: string[]): Promise<void> {
+    try {
+      const db = this.firebaseService.getFirestore();
+      const userId = await this.firebaseService.getCurrentUserId();
+      if (!userId) throw new Error('Must be logged in to update tags');
+
+      const loadoutRef = this.firebaseService.doc(`loadouts/${loadoutId}`);
+      const loadoutSnap = await getDoc(loadoutRef);
+      
+      if (!loadoutSnap.exists()) {
+        throw new Error('Loadout not found');
+      }
+
+      // Update the loadout (no ownership check - community tagging!)
+      await runTransaction(db, async (transaction) => {
+        transaction.update(loadoutRef, {
+          tags,
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      // Update local state
+      const currentLoadouts = this.loadoutStateService.getCurrentLoadouts();
+      const updatedLoadouts = currentLoadouts.map(loadout => {
+        if (loadout.id === loadoutId) {
+          return { ...loadout, tags };
+        }
+        return loadout;
+      });
+      this.loadoutStateService.updateLoadouts(updatedLoadouts);
+
+      // Refresh from server to ensure consistency
+      await this.firebaseService.refreshLoadouts();
+
+      console.log(`Updated loadout ${loadoutId} tags:`, tags);
+    } catch (error) {
+      console.error('Error updating loadout tags:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create multiple loadouts in a batch operation
+   * Returns summary of success/failure
+   */
+  async bulkCreateLoadouts(
+    loadouts: LoadoutData[],
+    batchId?: string
+  ): Promise<{
+    success: string[];
+    failed: Array<{ loadout: LoadoutData; error: string }>;
+    totalCount: number;
+  }> {
+    const db = this.firebaseService.getFirestore();
+    const userId = await this.firebaseService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('Must be logged in to create loadouts');
+    }
+
+    const success: string[] = [];
+    const failed: Array<{ loadout: LoadoutData; error: string }> = [];
+    const BATCH_SIZE = 500; // Firestore batch limit
+
+    // Process in batches of 500
+    for (let i = 0; i < loadouts.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      const batchLoadouts = loadouts.slice(i, i + BATCH_SIZE);
+      const batchIds: string[] = [];
+
+      try {
+        for (const loadout of batchLoadouts) {
+          const loadoutRef = doc(collection(db, 'loadouts'));
+          const loadoutId = loadoutRef.id;
+          batchIds.push(loadoutId);
+
+          const loadoutWithTimestamps = {
+            ...loadout,
+            id: loadoutId,
+            userId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            isPublic: loadout.isPublic ?? false, // Default to private for bulk imports
+            version: loadout.version ?? 1,
+            likes: 0,
+            views: 0,
+            syncMetadata: {
+              ...loadout.syncMetadata,
+              source: 'bulk_import' as const,
+              importDate: serverTimestamp(),
+              batchId: batchId || `batch_${Date.now()}`
+            }
+          };
+
+          batch.set(loadoutRef, loadoutWithTimestamps);
+        }
+
+        // Update user stats in the same batch
+        const userRef = this.firebaseService.doc(`users/${userId}`);
+        batch.update(userRef, {
+          loadoutCount: increment(batchLoadouts.length),
+          lastLoadoutCreated: serverTimestamp()
+        });
+
+        // Update global stats
+        const statsRef = this.firebaseService.doc('stats/global');
+        batch.set(statsRef, {
+          totalLoadouts: increment(batchLoadouts.length),
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        // Commit the batch
+        await batch.commit();
+
+        // Add to success list
+        success.push(...batchIds);
+
+        console.log(`Successfully created batch ${i / BATCH_SIZE + 1}: ${batchLoadouts.length} loadouts`);
+      } catch (error) {
+        console.error(`Error in batch ${i / BATCH_SIZE + 1}:`, error);
+        
+        // Add all loadouts in this batch to failed list
+        batchLoadouts.forEach(loadout => {
+          failed.push({
+            loadout,
+            error: error instanceof Error ? error.message : 'Unknown error during batch operation'
+          });
+        });
+      }
+    }
+
+    // Refresh loadouts from server if any succeeded
+    if (success.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await this.firebaseService.refreshLoadouts();
+    }
+
+    return {
+      success,
+      failed,
+      totalCount: loadouts.length
+    };
+  }
+
+  /**
+   * Replace an existing loadout with a new one
+   */
+  async replaceLoadout(existingId: string, newLoadout: LoadoutData): Promise<void> {
+    const db = this.firebaseService.getFirestore();
+    const userId = await this.firebaseService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('Must be logged in to replace loadouts');
+    }
+
+    const loadoutRef = this.firebaseService.doc(`loadouts/${existingId}`);
+    const loadoutSnap = await getDoc(loadoutRef);
+    
+    if (!loadoutSnap.exists()) {
+      throw new Error('Loadout not found');
+    }
+
+    const existingData = loadoutSnap.data() as LoadoutData;
+    if (existingData.userId !== userId) {
+      throw new Error('You do not have permission to replace this loadout');
+    }
+
+    // Merge tags: combine existing + new, remove duplicates
+    const mergedTags = Array.from(new Set([
+      ...(existingData.tags || []),
+      ...(newLoadout.tags || [])
+    ]));
+
+    await runTransaction(db, async (transaction) => {
+      transaction.update(loadoutRef, {
+        setup: newLoadout.setup,
+        layout: newLoadout.layout,
+        category: newLoadout.category,
+        tags: mergedTags, // Use merged tags instead of replacing
+        type: newLoadout.type,
+        originalFormat: newLoadout.originalFormat,
+        syncMetadata: {
+          ...newLoadout.syncMetadata,
+          source: 'bulk_import' as const,
+          importDate: serverTimestamp(),
+          duplicateOf: existingId
+        },
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    // Refresh from server
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await this.firebaseService.refreshLoadouts();
+  }
 } 

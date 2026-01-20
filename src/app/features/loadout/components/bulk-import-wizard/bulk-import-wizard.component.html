@@ -1,0 +1,501 @@
+<div class="wizard-container">
+  <div class="wizard-header">
+    <h2>Bulk Import from RuneLite</h2>
+    <button mat-icon-button (click)="close()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-horizontal-stepper #stepper [linear]="true" class="wizard-stepper">
+    
+    <!-- STEP 1: UPLOAD -->
+    <mat-step [completed]="canProceedFromUpload()">
+      <ng-template matStepLabel>Upload</ng-template>
+      
+      <div class="step-content">
+        <h3>Select Files to Import</h3>
+        <p class="step-description">
+          Upload your RuneLite configuration file (looks like <code>default-5031079919000</code>) to import all your setups at once!
+        </p>
+
+        <!-- Quick Help -->
+        <div class="quick-help">
+          <button mat-button class="help-toggle" (click)="showHelp = !showHelp">
+            <mat-icon>{{ showHelp ? 'expand_less' : 'help_outline' }}</mat-icon>
+            {{ showHelp ? 'Hide Help' : 'Where are my RuneLite files?' }}
+          </button>
+        </div>
+
+        <!-- Expandable Help Section -->
+        <div class="help-section" *ngIf="showHelp" @slideDown>
+          <div class="help-content">
+            <p class="help-intro">
+              <mat-icon>terminal</mat-icon>
+              <strong>Easy Method:</strong> Copy and paste this command to open your RuneLite folder
+            </p>
+
+            <div class="command-list">
+              <div class="command-item windows-highlight">
+                <div class="command-header">
+                  <mat-icon>desktop_windows</mat-icon>
+                  <strong>Windows - Open RuneLite Folder:</strong>
+                </div>
+                <div class="instructions-box">
+                  <ol>
+                    <li>Press <kbd>Windows</kbd> + <kbd>R</kbd> on your keyboard</li>
+                    <li>Copy and paste this:</li>
+                  </ol>
+                </div>
+                <div class="command-box">
+                  <code>%USERPROFILE%\.runelite\profiles2</code>
+                  <button mat-icon-button (click)="copyToClipboard('%USERPROFILE%\\.runelite\\profiles2')" matTooltip="Copy path">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+                <div class="instructions-box">
+                  <ol start="3">
+                    <li>Press <kbd>Enter</kbd> to open the folder</li>
+                    <li>Find the <strong>default-[numbers]</strong> file (e.g., "default-5031079919000")</li>
+                    <li>Upload that file here - it contains ALL your setups!</li>
+                  </ol>
+                </div>
+                <span class="command-note">⚠️ This is a configuration file with no extension - that's normal!</span>
+              </div>
+
+              <div class="command-item">
+                <div class="command-header">
+                  <mat-icon>laptop_mac</mat-icon>
+                  <strong>macOS (Terminal):</strong>
+                </div>
+                <div class="command-box">
+                  <code>open ~/.runelite/profiles2</code>
+                  <button mat-icon-button (click)="copyToClipboard('open ~/.runelite/profiles2')" matTooltip="Copy command">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+                <span class="command-note">Opens folder in Finder. Upload the "default-[numbers]" file you find there.</span>
+              </div>
+
+              <div class="command-item">
+                <div class="command-header">
+                  <mat-icon>computer</mat-icon>
+                  <strong>Linux (Terminal):</strong>
+                </div>
+                <div class="command-box">
+                  <code>xdg-open ~/.runelite/profiles2</code>
+                  <button mat-icon-button (click)="copyToClipboard('xdg-open ~/.runelite/profiles2')" matTooltip="Copy command">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+                <span class="command-note">Opens folder in file manager. Upload the "default-[numbers]" file you find there.</span>
+              </div>
+            </div>
+
+            <div class="help-tip">
+              <mat-icon>lightbulb</mat-icon>
+              <span>Once the folder opens, find the <code>default-[numbers]</code> file (looks like "default-5031079919000") and upload it here. This file contains all your setups!</span>
+            </div>
+
+            <div class="help-tip profiles-note">
+              <mat-icon>people</mat-icon>
+              <span><strong>Have multiple RuneLite profiles?</strong> Each profile has its own config file in the <code>profiles2</code> folder. Make sure you upload the file from the profile you want to import!</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drop Zone -->
+        <div class="drop-zone"
+             (dragover)="onDragOver($event)"
+             (drop)="onDrop($event)"
+             [class.has-files]="state.files.length > 0">
+          <mat-icon class="drop-icon">cloud_upload</mat-icon>
+          <p class="drop-text">
+            Drag and drop files here, or click to browse
+          </p>
+          <input #fileInput
+                 type="file"
+                 multiple
+                 accept=".json,.txt"
+                 (change)="onFileSelect($event)"
+                 style="display: none;">
+          <button mat-raised-button color="primary" (click)="fileInput.click()">
+            Browse Files
+          </button>
+        </div>
+
+        <!-- File List -->
+        <div *ngIf="state.files.length > 0" class="file-list">
+          <h4>Selected Files ({{ state.files.length }})</h4>
+          <mat-card *ngFor="let file of state.files; let i = index" class="file-card">
+            <div class="file-info">
+              <mat-icon>description</mat-icon>
+              <div class="file-details">
+                <span class="file-name">{{ file.name }}</span>
+                <span class="file-size">{{ (file.size / 1024).toFixed(2) }} KB</span>
+              </div>
+            </div>
+            <button mat-icon-button (click)="removeFile(i)" matTooltip="Remove file">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-card>
+        </div>
+
+        <!-- Parse Results -->
+        <div *ngIf="state.parsedSetups.length > 0" class="parse-results success">
+          <mat-icon>check_circle</mat-icon>
+          <span>Successfully parsed {{ state.parsedSetups.length }} setup{{ state.parsedSetups.length > 1 ? 's' : '' }}</span>
+        </div>
+
+        <div *ngIf="state.parseErrors.length > 0" class="parse-results error">
+          <mat-icon>error</mat-icon>
+          <div>
+            <span>{{ state.parseErrors.length }} error{{ state.parseErrors.length > 1 ? 's' : '' }} occurred</span>
+            <div class="error-list">
+              <div *ngFor="let error of state.parseErrors" class="error-item">
+                <strong>{{ error.fileName }}:</strong> {{ error.message }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="parsing" class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <span>Parsing files...</span>
+        </div>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="close()">Cancel</button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromUpload()"
+                  (click)="stepper.next()">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <!-- STEP 2: REVIEW -->
+    <mat-step [completed]="canProceedFromReview()">
+      <ng-template matStepLabel>Review</ng-template>
+      
+      <div class="step-content">
+        <h3>Review Setups</h3>
+        <p class="step-description">
+          Review and select which setups you want to import. 
+          <strong>Click the category or tags buttons to customize each setup.</strong>
+        </p>
+
+        <!-- Search -->
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search setups</mat-label>
+          <input matInput [(ngModel)]="setupSearchQuery" placeholder="Filter by name...">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-icon-button matSuffix *ngIf="setupSearchQuery" (click)="setupSearchQuery = ''" matTooltip="Clear search">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
+        <div class="review-actions">
+          <button mat-button (click)="toggleAllSetups()">
+            {{ selectedCount === filteredSetups.length ? 'Deselect All' : 'Select All' }}
+          </button>
+          <span class="selection-count">{{ selectedCount }} of {{ filteredSetups.length }} setups ({{ state.parsedSetups.length }} total)</span>
+        </div>
+
+        <div class="setup-list">
+          <mat-card *ngFor="let setup of filteredSetups; let i = index" 
+                    class="setup-preview-card"
+                    [class.selected]="setup.selected"
+                    (click)="toggleSetupSelection(setup)">
+            <mat-checkbox [checked]="setup.selected" 
+                         (click)="$event.stopPropagation()"
+                         (change)="toggleSetupSelection(setup)"
+                         class="setup-checkbox">
+            </mat-checkbox>
+            
+            <div class="setup-content">
+              <div class="setup-header">
+                <h4>{{ setup.setup.name }}</h4>
+                <span class="setup-source">{{ setup.metadata.fileName }}</span>
+              </div>
+
+              <div class="setup-preview">
+                <!-- Equipment preview -->
+                <div class="preview-section">
+                  <span class="preview-label">Equipment:</span>
+                  <div class="item-icons">
+                    <img *ngFor="let item of setup.setup.eq.slice(0, 6) | filterNull" 
+                         [src]="getItemImageUrl(item.id)"
+                         [matTooltip]="getItemName(item.id)"
+                         class="preview-icon">
+                    <span *ngIf="(setup.setup.eq | filterNull).length > 6" class="more-items">
+                      +{{ (setup.setup.eq | filterNull).length - 6 }} more
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Inventory preview -->
+                <div class="preview-section">
+                  <span class="preview-label">Inventory:</span>
+                  <div class="item-icons">
+                    <img *ngFor="let item of setup.setup.inv.slice(0, 8) | filterNull" 
+                         [src]="getItemImageUrl(item.id)"
+                         [matTooltip]="getItemName(item.id)"
+                         class="preview-icon">
+                    <span *ngIf="(setup.setup.inv | filterNull).length > 8" class="more-items">
+                      +{{ (setup.setup.inv | filterNull).length - 8 }} more
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Suggested metadata (editable) -->
+                <div class="metadata-preview editable">
+                  <div class="metadata-header">
+                    <mat-icon class="info-icon">auto_awesome</mat-icon>
+                    <span class="auto-detected-label">Auto-detected - Click to customize</span>
+                  </div>
+                  <div class="metadata-content">
+                    <!-- Category Editor -->
+                    <div class="metadata-row">
+                      <mat-form-field appearance="outline" class="category-field">
+                        <mat-label>Category</mat-label>
+                        <mat-select [(ngModel)]="setup.metadata.suggestedCategory" 
+                                    (ngModelChange)="updateCategory(setup, $event)"
+                                    (click)="$event.stopPropagation()">
+                          <mat-option *ngFor="let cat of categories" [value]="cat.value">
+                            {{ cat.label }}
+                          </mat-option>
+                        </mat-select>
+                      </mat-form-field>
+
+                      <!-- Tags Editor with Autocomplete -->
+                      <div class="tags-editor" (click)="$event.stopPropagation()">
+                        <mat-form-field appearance="outline" class="tags-input-field">
+                          <mat-label>Tags (type to add custom tags like 'ToB', 'Vorkath')</mat-label>
+                          <mat-chip-grid #chipGrid>
+                            <mat-chip-row *ngFor="let tag of setup.metadata.detectedTags" 
+                                          (removed)="removeTag(setup, tag)">
+                              {{ tag }}
+                              <button matChipRemove>
+                                <mat-icon>cancel</mat-icon>
+                              </button>
+                            </mat-chip-row>
+                          </mat-chip-grid>
+                          <input placeholder="Add tag..."
+                                 #tagInput
+                                 [formControl]="tagCtrl"
+                                 [matChipInputFor]="chipGrid"
+                                 [matAutocomplete]="auto"
+                                 [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+                                 (matChipInputTokenEnd)="addTag(setup, $event)">
+                          <mat-autocomplete #auto="matAutocomplete" 
+                                           (optionSelected)="selectedTag(setup, $event)">
+                            <mat-option *ngFor="let tag of filteredTags$ | async" [value]="tag">
+                              {{ tag }}
+                            </mat-option>
+                          </mat-autocomplete>
+                        </mat-form-field>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button mat-icon-button (click)="removeSetup(i); $event.stopPropagation()" 
+                    matTooltip="Remove setup">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-card>
+        </div>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper.previous()">Back</button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromReview()"
+                  (click)="detectDuplicates(); stepper.next()">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <!-- STEP 3: DUPLICATES -->
+    <mat-step>
+      <ng-template matStepLabel>Duplicates</ng-template>
+      
+      <div class="step-content">
+        <h3>Handle Duplicate Setups</h3>
+        <p class="step-description">
+          We found {{ state.duplicateMatches.length }} setup{{ state.duplicateMatches.length !== 1 ? 's' : '' }} 
+          that {{ state.duplicateMatches.length !== 1 ? 'appear' : 'appears' }} similar to your existing setups.
+          Choose how to handle {{ state.duplicateMatches.length !== 1 ? 'them' : 'it' }}.
+        </p>
+
+        <!-- Loading -->
+        <div *ngIf="detectingDuplicates" class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <span>Detecting duplicates...</span>
+        </div>
+
+        <!-- No Duplicates -->
+        <div *ngIf="!detectingDuplicates && state.duplicateMatches.length === 0" class="no-duplicates">
+          <mat-icon>check_circle</mat-icon>
+          <h4>No Duplicates Found!</h4>
+          <p>All selected setups are unique. You can proceed to the next step.</p>
+        </div>
+
+        <!-- Duplicate Viewer -->
+        <div *ngIf="!detectingDuplicates && state.duplicateMatches.length > 0">
+          <div class="batch-actions">
+            <span>Apply to all:</span>
+            <button mat-button (click)="applyActionToAll('skip')">Skip All</button>
+            <button mat-button (click)="applyActionToAll('replace')">Replace All</button>
+            <button mat-button (click)="applyActionToAll('keep_both')">Keep All</button>
+          </div>
+
+          <app-setup-diff-viewer
+            *ngIf="currentDuplicateMatch"
+            [match]="currentDuplicateMatch"
+            [currentIndex]="state.currentDuplicateIndex"
+            [totalMatches]="state.duplicateMatches.length"
+            [currentUserId]="currentUserId"
+            (next)="nextDuplicate()"
+            (previous)="previousDuplicate()">
+          </app-setup-diff-viewer>
+        </div>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper.previous()">Back</button>
+          <button mat-button (click)="skipDuplicateDetection()" 
+                  *ngIf="state.duplicateMatches.length === 0">
+            Skip
+          </button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromDuplicates() && state.duplicateMatches.length > 0"
+                  (click)="stepper.next()">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <!-- STEP 4: CONFIRM -->
+    <mat-step>
+      <ng-template matStepLabel>Confirm</ng-template>
+      
+      <div class="step-content">
+        <div *ngIf="!state.importResults">
+          <h3>Ready to Import</h3>
+          <p class="step-description">
+            Review your import summary and click "Import" to proceed.
+          </p>
+
+          <!-- Privacy Setting - Prominent Callout -->
+          <div class="privacy-callout" [class.public]="state.isPublic" [class.private]="!state.isPublic">
+            <div class="privacy-header">
+              <mat-icon>{{ state.isPublic ? 'public' : 'lock' }}</mat-icon>
+              <h4>{{ state.isPublic ? 'Your setups will be PUBLIC' : 'Your setups will be PRIVATE' }}</h4>
+            </div>
+            <p class="privacy-description">
+              {{ state.isPublic 
+                ? 'Anyone can view, search, and copy your setups. Perfect for sharing with the community!' 
+                : 'Only you can see your setups. They won\'t appear in public searches.' }}
+            </p>
+            <mat-checkbox [(ngModel)]="state.isPublic" class="privacy-toggle">
+              Make all setups public
+            </mat-checkbox>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="import-summary">
+            <div class="summary-item">
+              <mat-icon>playlist_add</mat-icon>
+              <div class="summary-content">
+                <span class="summary-label">Total Importing</span>
+                <span class="summary-value">{{ finalSetupCount }}</span>
+              </div>
+            </div>
+
+            <div class="summary-item" *ngIf="state.duplicateMatches.length > 0">
+              <mat-icon>swap_horiz</mat-icon>
+              <div class="summary-content">
+                <span class="summary-label">Will Replace</span>
+                <span class="summary-value">{{ replacingCount }}</span>
+              </div>
+            </div>
+
+            <div class="summary-item" *ngIf="state.duplicateMatches.length > 0">
+              <mat-icon>block</mat-icon>
+              <div class="summary-content">
+                <span class="summary-label">Will Skip</span>
+                <span class="summary-value">{{ skippingCount }}</span>
+              </div>
+            </div>
+
+            <div class="summary-item">
+              <mat-icon>{{ state.isPublic ? 'public' : 'lock' }}</mat-icon>
+              <div class="summary-content">
+                <span class="summary-label">Visibility</span>
+                <span class="summary-value">{{ state.isPublic ? 'Public' : 'Private' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import Progress -->
+          <div *ngIf="state.importing" class="import-progress">
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+            <p>Importing setups...</p>
+          </div>
+
+          <!-- Navigation -->
+          <div class="step-actions">
+            <button mat-button (click)="stepper.previous()" [disabled]="state.importing">
+              Back
+            </button>
+            <button mat-raised-button color="primary" 
+                    (click)="performImport()"
+                    [disabled]="state.importing">
+              <mat-icon>cloud_upload</mat-icon>
+              Import
+            </button>
+          </div>
+        </div>
+
+        <!-- Import Results -->
+        <div *ngIf="state.importResults" class="import-results">
+          <mat-icon class="success-icon">check_circle</mat-icon>
+          <h3>Import Complete!</h3>
+          
+          <div class="results-summary">
+            <div class="result-item success">
+              <span class="result-label">Successfully Imported:</span>
+              <span class="result-value">{{ state.importResults.success }}</span>
+            </div>
+            <div class="result-item skip" *ngIf="state.importResults.skipped > 0">
+              <span class="result-label">Skipped:</span>
+              <span class="result-value">{{ state.importResults.skipped }}</span>
+            </div>
+            <div class="result-item error" *ngIf="state.importResults.failed > 0">
+              <span class="result-label">Failed:</span>
+              <span class="result-value">{{ state.importResults.failed }}</span>
+            </div>
+          </div>
+
+          <div class="step-actions">
+            <button mat-raised-button color="primary" (click)="finishImport()">
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </mat-step>
+
+  </mat-horizontal-stepper>
+</div>
+
