@@ -5,14 +5,18 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatOptionModule } from '@angular/material/core';
 import { LoadoutData, Setup } from '../../../../shared/models/inventory.model';
 import { InventoryGridComponent } from '../../../inventory/components/inventory-grid/inventory-grid.component';
 import { EquipmentSlotsComponent } from '../../../equipment/components/equipment-slots/equipment-slots.component';
 import { RunePouchComponent } from '../../../inventory/components/rune-pouch/rune-pouch.component';
 import { BankTagLayoutGridComponent } from '../../../inventory/components/bank-tag-layout-grid/bank-tag-layout-grid.component';
+import { TagEditorComponent } from '../../../../shared/components/tag-editor/tag-editor.component';
 import { OsrsApiService } from '../../../../core/services/osrs-api.service';
 import { FirebaseService } from '../../../../core/services/firebase.service';
 import { LoadoutService } from '../../../../core/services/loadout.service';
@@ -41,13 +45,17 @@ interface SpellbookMap {
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
-    MatChipsModule,
     MatMenuModule,
     MatDividerModule,
+    MatChipsModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    MatOptionModule,
     InventoryGridComponent,
     EquipmentSlotsComponent,
     RunePouchComponent,
     BankTagLayoutGridComponent,
+    TagEditorComponent,
     FirebaseDatePipe
   ],
   providers: [DatePipe]
@@ -64,6 +72,7 @@ export class LoadoutModalComponent {
   isLoggedIn$: Observable<boolean>;
   hasLiked = false;
   isPublic = true;
+  // Community tagging enabled!
 
   constructor(
     public dialogRef: MatDialogRef<LoadoutModalComponent>,
@@ -78,6 +87,10 @@ export class LoadoutModalComponent {
     this.isLoggedIn$ = this.firebaseService.isLoggedIn$;
     this.isOwner = this.firebaseService.isLoadoutOwner(this.data);
     this.isPublic = this.data.isPublic ?? true;
+    // Default category to 'Other' if not set
+    if (!this.data.category) {
+      this.data.category = 'Other';
+    }
     this.checkLikeStatus();
   }
 
@@ -305,6 +318,56 @@ export class LoadoutModalComponent {
     }
 
     return layout;
+  }
+
+  /**
+   * Handle category changed
+   */
+  async onCategoryChanged(newCategory: 'Combat' | 'Skilling' | 'PvP' | 'Other'): Promise<void> {
+    const oldCategory = this.data.category;
+    this.data.category = newCategory;
+    
+    // Save to Firestore if loadout has ID
+    if (this.data.id) {
+      try {
+        await this.loadoutService.updateLoadoutCategory(this.data.id, newCategory);
+        this.snackBar.open('Category updated!', 'Close', { duration: 2000 });
+      } catch (error) {
+        console.error('Error updating category:', error);
+        // Revert on error
+        this.data.category = oldCategory;
+        this.snackBar.open('Failed to update category', 'Close', { duration: 3000 });
+      }
+    }
+  }
+
+  /**
+   * Handle tags changed from tag editor component
+   */
+  async onTagsChanged(newTags: string[]): Promise<void> {
+    const oldTags = this.data.tags || [];
+    this.data.tags = newTags;
+    
+    // Save to Firestore if loadout has ID
+    if (this.data.id) {
+      try {
+        await this.loadoutService.updateLoadoutTags(this.data.id, newTags);
+        this.snackBar.open('Tags updated!', 'Close', { duration: 2000 });
+      } catch (error) {
+        console.error('Error updating tags:', error);
+        // Revert on error
+        this.data.tags = oldTags;
+        this.snackBar.open('Failed to update tags', 'Close', { duration: 3000 });
+      }
+    }
+  }
+
+  /**
+   * Can user remove this specific tag?
+   * Only owner can remove tags
+   */
+  canRemoveTag(): boolean {
+    return this.isOwner;
   }
 
   async togglePrivacy(): Promise<void> {

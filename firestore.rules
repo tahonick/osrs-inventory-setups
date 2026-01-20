@@ -14,7 +14,11 @@ service cloud.firestore {
         // Allow owner to update their loadout
         request.auth.uid == resource.data.userId ||
         // Allow any authenticated user to update likes count
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        // Allow any authenticated user to add/update tags (community tagging!)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tags', 'updatedAt']) ||
+        // Allow owner to update category
+        (request.auth.uid == resource.data.userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'updatedAt']))
       );
       allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
     }

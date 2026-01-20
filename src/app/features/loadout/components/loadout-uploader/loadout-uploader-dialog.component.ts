@@ -68,21 +68,29 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
   imageError = false;
 
   readonly categories: { value: Category['type']; label: string }[] = [
-    { value: 'Boss', label: 'Boss' },
-    { value: 'Skill', label: 'Skill' },
-    { value: 'Custom', label: 'Custom' }
+    { value: 'Combat', label: 'Combat (Bossing, Slayer, Raids)' },
+    { value: 'Skilling', label: 'Skilling (Non-combat)' },
+    { value: 'PvP', label: 'PvP (Wilderness, PKing)' },
+    { value: 'Other', label: 'Other (Minigames, Quests, Clues)' }
   ];
 
   readonly availableTags: string[] = [
+    // Activity (6)
     'Bossing',
     'Slayer',
-    'Raids',
-    'Wilderness',
     'Skilling',
-    'Money-maker',
+    'Questing',
+    'Minigames',
+    'PvP',
+    // Progression (4)
     'Beginner',
+    'Intermediate',
     'Advanced',
-    'Leagues'
+    'Endgame',
+    // Utility (3)
+    'AFK',
+    'Money-Making',
+    'Ironman'
   ];
 
   constructor(
@@ -97,7 +105,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
   ) {
     this.jsonForm = this.fb.group({
       json: ['', Validators.required],
-      category: ['Boss', Validators.required],
+      category: ['Combat', Validators.required],
       tags: [[]]
     });
 
@@ -199,7 +207,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
         const bankTagLayout = this.bankTagLayoutService.parseExport(cleanText);
         
         // Preserve existing category and tags if we're reparsing
-        const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Custom';
+        const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Other';
         const tags = this.loadoutPreview?.tags || this.jsonForm.get('tags')?.value || [];
         
         this.loadoutPreview = {
@@ -330,7 +338,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
       }
 
       // Preserve existing category and tags if we're reparsing
-      const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Custom';
+      const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Other';
       const tags = this.loadoutPreview?.tags || this.jsonForm.get('tags')?.value || [];
 
       this.loadoutPreview = {

@@ -26,6 +26,7 @@ import { LoadoutService, PaginationState, GroupedLoadouts } from '../../core/ser
 import { LoadoutData, Category } from '../../shared/models/inventory.model';
 import { LoadoutModalComponent } from '../loadout/components/loadout-modal/loadout-modal.component';
 import { LoadoutUploaderDialogComponent } from '../loadout/components/loadout-uploader/loadout-uploader-dialog.component';
+import { BulkImportWizardComponent } from '../loadout/components/bulk-import-wizard/bulk-import-wizard.component';
 import { FirebaseDatePipe } from '../../shared/pipes/firebase-date.pipe';
 import { OsrsApiService } from '../../core/services/osrs-api.service';
 import { EquipmentSlotsComponent } from '../equipment/components/equipment-slots/equipment-slots.component';
@@ -83,9 +84,10 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   isFooterVisible = false;
 
   readonly categories: { value: Category['type']; label: string }[] = [
-    { value: 'Boss', label: 'Boss' },
-    { value: 'Skill', label: 'Skill' },
-    { value: 'Custom', label: 'Custom' }
+    { value: 'Combat', label: 'Combat' },
+    { value: 'Skilling', label: 'Skilling' },
+    { value: 'PvP', label: 'PvP' },
+    { value: 'Other', label: 'Other' }
   ];
 
   readonly sortOptions: { key: 'likes' | 'date'; label: string; icon: string }[] = [
@@ -276,6 +278,22 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
       width: '90vw',
       maxWidth: '1400px',
       disableClose: false
+    });
+  }
+
+  openBulkImportDialog(): void {
+    const dialogRef = this.dialog.open(BulkImportWizardComponent, {
+      width: '95vw',
+      maxWidth: '1600px',
+      height: '90vh',
+      disableClose: false,
+      panelClass: 'bulk-import-dialog'
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        console.log('Import completed:', result);
+      }
     });
   }
 

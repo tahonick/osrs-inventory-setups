@@ -9,26 +9,30 @@
   <div class="info-banner" *ngIf="showInstructions">
     <div class="banner-content">
       <div class="instruction-group">
-        <h3>How to Export from RuneLite</h3>
-        <div class="instruction-step">
-          <mat-icon>ios_share</mat-icon>
-          <p>Go to <a href="https://runelite.net/plugin-hub/show/inventory-setups" target="_blank">Inventory Setups plugin</a> in RuneLite, click the white export icon</p>
-        </div>
+        <h3>Bulk Import Your Setups</h3>
         <div class="instruction-step">
           <mat-icon>add_circle</mat-icon>
-          <p>Click Create and paste your loadout</p>
+          <p>Click <strong>Add Layout</strong> → <strong>Import from RuneLite</strong></p>
+        </div>
+        <div class="instruction-step">
+          <mat-icon>upload_file</mat-icon>
+          <p>Upload your RuneLite config file - imports all setups at once</p>
+        </div>
+        <div class="instruction-step">
+          <mat-icon>auto_awesome</mat-icon>
+          <p>Auto-tags by category (Combat, Skilling, PvP) and detects duplicates</p>
         </div>
       </div>
       <mat-divider [vertical]="true"></mat-divider>
       <div class="instruction-group">
-        <h3>How to Import to RuneLite</h3>
+        <h3>Share to RuneLite</h3>
         <div class="instruction-step">
           <mat-icon>content_copy</mat-icon>
-          <p>Open a loadout and copy it to your clipboard</p>
+          <p>Open any setup and copy it to your clipboard</p>
         </div>
         <div class="instruction-step">
           <mat-icon class="green-icon">save_alt</mat-icon>
-          <p>In RuneLite, click the green import icon and paste the loadout</p>
+          <p>In RuneLite, click the green import icon and paste</p>
         </div>
       </div>
     </div>
@@ -163,14 +167,28 @@
         </button>
       </div>
 
-      <button mat-flat-button 
-              color="primary" 
-              (click)="openCreateDialog()" 
-              [disabled]="(isLoggedIn$ | async) === false" 
-              class="create-button">
-        <mat-icon>add</mat-icon>
-        Create
-      </button>
+      <div class="action-buttons">
+        <button mat-flat-button 
+                color="primary" 
+                [matMenuTriggerFor]="addMenu"
+                [disabled]="(isLoggedIn$ | async) === false" 
+                class="add-layout-button">
+          <mat-icon>add</mat-icon>
+          Add Layout
+          <mat-icon class="dropdown-icon">arrow_drop_down</mat-icon>
+        </button>
+        
+        <mat-menu #addMenu="matMenu">
+          <button mat-menu-item (click)="openCreateDialog()">
+            <mat-icon>edit</mat-icon>
+            <span>Create New</span>
+          </button>
+          <button mat-menu-item (click)="openBulkImportDialog()">
+            <mat-icon>cloud_upload</mat-icon>
+            <span>Import from RuneLite</span>
+          </button>
+        </mat-menu>
+      </div>
     </div>
   </div>
 
@@ -285,7 +303,7 @@
         <div *ngIf="grouped.created.length > 0" class="loadout-section">
           <h2 class="section-title">
             <mat-icon>create</mat-icon>
-            <span>Setups I Created</span>
+            <span>My Setups</span>
           </h2>
           <mat-card *ngFor="let loadout of grouped.created" 
                     class="loadout-card"
@@ -302,7 +320,7 @@
         <div *ngIf="grouped.liked.length > 0" class="loadout-section">
           <h2 class="section-title">
             <mat-icon>favorite</mat-icon>
-            <span>Favorite Setups by Other Users</span>
+            <span>My Likes</span>
           </h2>
           <mat-card *ngFor="let loadout of grouped.liked" 
                     class="loadout-card"
@@ -341,10 +359,11 @@
             <mat-icon>{{ isLayoutType(loadout) ? 'grid_on' : 'inventory_2' }}</mat-icon>
             <span>{{ isLayoutType(loadout) ? 'Bank Tag Layout' : 'Inventory Setup' }}</span>
           </div>
-          <div class="category-indicator" *ngIf="loadout.category !== 'Custom'">
+          <div class="category-indicator" *ngIf="loadout.category !== 'Other'">
             <mat-icon>{{ 
-              loadout.category === 'Boss' ? 'security' : 
-              loadout.category === 'Skill' ? 'trending_up' : 
+              loadout.category === 'Combat' ? 'swords' : 
+              loadout.category === 'Skilling' ? 'trending_up' : 
+              loadout.category === 'PvP' ? 'shield' :
               'category' 
             }}</mat-icon>
             <span>{{ loadout.category }}</span>

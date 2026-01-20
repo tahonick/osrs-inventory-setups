@@ -4,6 +4,7 @@
   max-width: 1600px;
   margin: 0 auto;
   padding: 1rem;
+  min-height: calc(100vh - 200px); // Ensure container fills viewport minus header/footer
 }
 
 .top-bar {
@@ -86,10 +87,35 @@
       }
     }
 
-    .create-button {
-      height: 48px;
-      padding: 0 24px;
-      white-space: nowrap;
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+
+      .add-layout-button {
+        height: 48px;
+        padding: 0 16px 0 24px;
+        white-space: nowrap;
+
+        mat-icon:first-child {
+          margin-right: 8px;
+        }
+
+        .dropdown-icon {
+          margin-left: 4px;
+          margin-right: -8px;
+        }
+      }
+
+      .create-button,
+      .import-button {
+        height: 48px;
+        padding: 0 24px;
+        white-space: nowrap;
+
+        mat-icon {
+          margin-right: 8px;
+        }
+      }
     }
   }
 }
@@ -121,15 +147,19 @@
 
 .loadouts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
   gap: 1rem;
   margin-top: 1rem;
 
   .loadout-section {
     grid-column: 1 / -1;
     margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
+    gap: 1rem;
 
     .section-title {
+      grid-column: 1 / -1;
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -449,10 +479,6 @@
         width: 100%;
       }
     }
-  }
-
-  .loadouts-grid {
-    grid-template-columns: 1fr;
   }
 } 
 

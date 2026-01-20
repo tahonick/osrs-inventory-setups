@@ -56,7 +56,7 @@
               <mat-label>Category</mat-label>
               <mat-select formControlName="category">
                 <mat-option *ngFor="let cat of categories" [value]="cat.value">
-                  <mat-icon>{{ cat.value === 'Boss' ? 'security' : cat.value === 'Skill' ? 'trending_up' : 'category' }}</mat-icon>
+                  <mat-icon>{{ cat.value === 'Combat' ? 'swords' : cat.value === 'Skilling' ? 'trending_up' : cat.value === 'PvP' ? 'shield' : 'category' }}</mat-icon>
                   {{ cat.label }}
                 </mat-option>
               </mat-select>
@@ -93,7 +93,7 @@
           <mat-icon>preview</mat-icon>
           {{ loadoutPreview.setup.name }}
         </h3>
-        <div class="preview-meta" *ngIf="jsonForm.get('tags')?.value?.length || jsonForm.get('category')?.value !== 'Custom'">
+        <div class="preview-meta" *ngIf="jsonForm.get('tags')?.value?.length || jsonForm.get('category')?.value !== 'Other'">
           <mat-chip-set>
             <mat-chip color="primary" highlighted>{{ loadoutPreview.category }}</mat-chip>
             <mat-chip *ngFor="let tag of jsonForm.get('tags')?.value || []">{{ tag }}</mat-chip>

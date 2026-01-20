@@ -1,0 +1,31 @@
+.tags-field {
+  width: 100%;
+
+  ::ng-deep .mat-mdc-text-field-wrapper {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  ::ng-deep mat-chip-grid {
+    min-height: 40px;
+  }
+
+  ::ng-deep mat-chip-row {
+    background: rgba(76, 175, 80, 0.2) !important;
+    border: 1px solid #4caf50 !important;
+    color: #81c784 !important;
+    font-size: 0.9rem;
+    
+    .mat-mdc-chip-remove {
+      opacity: 0.7;
+      color: #81c784;
+      
+      &:hover {
+        opacity: 1;
+      }
+    }
+    
+    .mdc-evolution-chip__action--primary {
+      color: #81c784 !important;
+    }
+  }
+}
