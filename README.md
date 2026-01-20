@@ -327,6 +327,42 @@ This fork includes significant improvements to authentication, privacy, user exp
    - Set privacy based on global checkbox
    - Add sync metadata for tracking
 
+### 🏷️ Community Tagging & Metadata System
+
+**Interactive Tag Editor (Reusable Component)**
+- Shared component (`app-tag-editor`) used in both bulk import wizard and loadout modal
+- Material chip-grid with autocomplete for consistent UX
+- Green chips with borders matching bulk import aesthetic
+- Real-time tag suggestions with fuzzy filtering
+- Support for custom tags (type and press Enter)
+
+**Community Tagging Features**
+- **Anyone can add tags**: Any logged-in user can add tags to any setup to help with discovery
+- **Owner controls removal**: Only setup owners can remove tags (prevents vandalism)
+- **Tag persistence**: All tag changes saved to Firestore with optimistic UI updates
+- **Autocomplete suggestions**: Pre-populated with common tags (Bossing, Slayer, Wilderness, ToB, CoX, ToA, AFK, etc.)
+- **Custom tags**: Users can create any custom tag with autocomplete filtering against existing tags
+
+**Category Management**
+- **Owner-only editing**: Category dropdown visible for setup owners (logged in)
+- **MECE Categories**: Combat, Skilling, PvP, Other
+- **Default handling**: Existing setups without categories default to "Other" on first view
+- **Visual feedback**: Toast notifications for successful updates or errors
+- **Readonly display**: Non-owners see category badge (no dropdown)
+
+**Inline Metadata Display**
+- Category and tags always visible below inventory/equipment (no hidden popovers)
+- "Storage Items" renamed to "Inventory" for clarity
+- Help text explaining community tagging permissions
+- Clean, form-based layout matching bulk import wizard
+
+**Firestore Security**
+- Rules updated to allow:
+  - **Tags**: Any authenticated user can update `tags` + `updatedAt` fields
+  - **Category**: Only owner can update `category` + `updatedAt` fields
+  - **Likes**: Any authenticated user can update `likes` field
+  - **Full loadout**: Only owner can update all other fields
+
 **Dependencies**
 - Upgraded to Angular 19 (from Angular 16)
 - Upgraded to Firebase SDK v11 (from v9)

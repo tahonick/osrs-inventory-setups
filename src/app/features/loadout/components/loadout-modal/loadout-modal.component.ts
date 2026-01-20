@@ -72,7 +72,6 @@ export class LoadoutModalComponent {
   isLoggedIn$: Observable<boolean>;
   hasLiked = false;
   isPublic = true;
-  // Community tagging enabled!
 
   constructor(
     public dialogRef: MatDialogRef<LoadoutModalComponent>,
