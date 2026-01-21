@@ -6,14 +6,16 @@ import { initializeApp } from 'firebase/app';
 import { 
   Auth, 
   getAuth, 
+  signInWithRedirect,
   signInWithPopup,
+  linkWithRedirect,
   linkWithPopup,
+  getRedirectResult,
   GoogleAuthProvider, 
   signInAnonymously,
   signOut as firebaseSignOut,
   User,
-  onAuthStateChanged,
-  browserPopupRedirectResolver
+  onAuthStateChanged
 } from 'firebase/auth';
 import { 
   Firestore, 
@@ -111,6 +113,7 @@ export class FirebaseService {
 
   private readonly STATS_CACHE_KEY = 'inventory_setups_stats';
   private readonly STATS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly SIGNIN_FLAG_KEY = 'isSigningInWithGoogle';
   private isSigningInWithGoogle = false; // Flag to prevent auto anonymous sign-in during Google sign-in
   
   constructor(
@@ -119,6 +122,17 @@ export class FirebaseService {
     private dialog: MatDialog
   ) {
     this.loadCachedStats();
+    
+    // Check if we're in the middle of a Google sign-in flow (persisted across redirect)
+    const signingInFlag = sessionStorage.getItem(this.SIGNIN_FLAG_KEY);
+    if (signingInFlag === 'true') {
+      this.isSigningInWithGoogle = true;
+      console.log('Detected ongoing Google sign-in flow from sessionStorage');
+    }
+    
+    // Handle redirect result from Google sign-in
+    this.handleRedirectResult();
+    
     onAuthStateChanged(this.auth, (user: User | null) => {
       this.currentUser.next(user);
       // Only refresh loadouts if we're not in the middle of a Google sign-in
@@ -315,7 +329,173 @@ export class FirebaseService {
 
   // Check if we're in the middle of a Google sign-in flow
   isSigningInWithGoogleFlow(): boolean {
-    return this.isSigningInWithGoogle;
+    // Check both memory flag and sessionStorage (in case of page reload during redirect)
+    return this.isSigningInWithGoogle || sessionStorage.getItem(this.SIGNIN_FLAG_KEY) === 'true';
+  }
+
+  // Use popup authentication everywhere for the best UX
+  private shouldUsePopup(): boolean {
+    // Modern browsers (2026) handle OAuth popups reliably on all devices
+    // Benefits:
+    // - Clean UX: stays in context, no full-page redirect
+    // - Works on mobile: modern mobile browsers support OAuth popups well
+    // - No cookie issues: popup auth works even with strict privacy settings
+    console.log('🔍 Auth method: POPUP (clean, modern OAuth flow)');
+    return true;
+  }
+
+  private async handleRedirectResult(): Promise<void> {
+    try {
+      const signingInFlag = sessionStorage.getItem(this.SIGNIN_FLAG_KEY);
+      console.log('Checking for redirect result...');
+      console.log('Sign-in flag in sessionStorage:', signingInFlag);
+      console.log('Current URL:', window.location.href);
+      console.log('Current origin:', window.location.origin);
+      console.log('Auth domain:', this.auth.config.authDomain);
+      
+      const result = await getRedirectResult(this.auth);
+      console.log('getRedirectResult returned:', result ? 'SUCCESS' : 'NULL');
+      
+      if (result) {
+        console.log('✅ Got redirect result:', {
+          email: result.user.email,
+          uid: result.user.uid,
+          provider: result.providerId
+        });
+      }
+      
+      if (result) {
+        // User just completed sign-in via redirect
+        const user = result.user;
+        const wasAnonymous = sessionStorage.getItem('wasAnonymous') === 'true';
+        
+        console.log('✅ Redirect sign-in successful:', {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          wasAnonymous
+        });
+
+        // Create or update user document
+        await this.createOrUpdateUserDocument(user);
+        
+        // Clean up sessionStorage
+        sessionStorage.removeItem('authAction');
+        sessionStorage.removeItem('anonymousUid');
+        sessionStorage.removeItem('wasAnonymous');
+        sessionStorage.removeItem(this.SIGNIN_FLAG_KEY);
+        
+        // Reset the flag
+        this.isSigningInWithGoogle = false;
+        
+        // Refresh loadouts to show user's own loadouts
+        await this.refreshLoadouts();
+        
+        // Show message if they were anonymous
+        if (wasAnonymous) {
+          setTimeout(() => {
+            this.dialog.open(SignInInfoComponent, {
+              width: '400px',
+              data: {
+                message: 'Signed in successfully!',
+                note: 'Note: Setups created while anonymous remain on the anonymous account. You can recreate them if needed.'
+              }
+            });
+          }, 500);
+        }
+      } else {
+        // No redirect result - check if we have a stale flag
+        const signingInFlag = sessionStorage.getItem(this.SIGNIN_FLAG_KEY);
+        const authAction = sessionStorage.getItem('authAction');
+        
+        if (signingInFlag === 'true') {
+          console.warn('⚠️ REDIRECT AUTH ISSUE DETECTED');
+          console.warn('Expected redirect result but got null.');
+          console.warn('Auth action was:', authAction);
+          console.warn('');
+          console.warn('This usually means:');
+          console.warn('1. Redirect URIs not configured in Google Cloud Console');
+          console.warn('2. OR user cancelled the authentication');
+          console.warn('');
+          console.warn('📍 Required Redirect URI:', `${window.location.origin}/__/auth/handler`);
+          console.warn('');
+          console.warn('🔧 TO FIX: Add this URI to Google Cloud Console:');
+          console.warn('   1. Go to: https://console.cloud.google.com/apis/credentials');
+          console.warn('   2. Find your OAuth 2.0 Client ID');
+          console.warn('   3. Add to "Authorized redirect URIs":');
+          console.warn(`      ${window.location.origin}/__/auth/handler`);
+          console.warn('   4. Save and wait 5 minutes');
+          console.warn('');
+          
+          // Clear stale flags
+          sessionStorage.removeItem(this.SIGNIN_FLAG_KEY);
+          sessionStorage.removeItem('authAction');
+          sessionStorage.removeItem('anonymousUid');
+          sessionStorage.removeItem('wasAnonymous');
+          this.isSigningInWithGoogle = false;
+        }
+      }
+    } catch (error: any) {
+      console.error('Error handling redirect result:', error);
+      
+      // Clean up sessionStorage
+      sessionStorage.removeItem('authAction');
+      sessionStorage.removeItem('anonymousUid');
+      sessionStorage.removeItem('wasAnonymous');
+      sessionStorage.removeItem(this.SIGNIN_FLAG_KEY);
+      
+      // Reset flag on error
+      this.isSigningInWithGoogle = false;
+      
+      // Handle specific errors
+      if (error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/popup-closed-by-user') {
+        // User cancelled - silently handle
+        console.log('User cancelled sign-in');
+      } else {
+        // Other errors
+        console.error('Unexpected error during sign-in:', error);
+      }
+    }
+  }
+
+  private async createOrUpdateUserDocument(user: User): Promise<void> {
+    const userRef = doc(this.db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      // Check if there are existing loadouts from anonymous account
+      const loadoutsRef = collection(this.db, 'loadouts');
+      const userLoadoutsQuery = query(loadoutsRef, where('userId', '==', user.uid));
+      const userLoadoutsSnap = await getDocs(userLoadoutsQuery);
+      const loadoutCount = userLoadoutsSnap.size;
+      const totalLikes = userLoadoutsSnap.docs.reduce((sum, doc) => {
+        const data = doc.data();
+        return sum + (data['likes'] || 0);
+      }, 0);
+      const totalViews = userLoadoutsSnap.docs.reduce((sum, doc) => {
+        const data = doc.data();
+        return sum + (data['views'] || 0);
+      }, 0);
+
+      await setDoc(userRef, {
+        displayName: user.displayName || 'Anonymous User',
+        photoURL: user.photoURL,
+        lastActive: serverTimestamp(),
+        loadoutCount,
+        totalLikes,
+        totalViews,
+        createdAt: serverTimestamp(),
+        isAnonymous: user.isAnonymous
+      });
+    } else {
+      // Update existing user document
+      await updateDoc(userRef, {
+        displayName: user.displayName || 'Anonymous User',
+        photoURL: user.photoURL,
+        lastActive: serverTimestamp(),
+        isAnonymous: user.isAnonymous
+      });
+    }
   }
 
   async signInAnonymously(): Promise<void> {
@@ -324,25 +504,7 @@ export class FirebaseService {
       const user = result.user;
       
       // Create or update user document
-      const userRef = doc(this.db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          displayName: 'Anonymous User',
-          photoURL: null,
-          lastActive: serverTimestamp(),
-          loadoutCount: 0,
-          totalLikes: 0,
-          totalViews: 0,
-          createdAt: serverTimestamp(),
-          isAnonymous: true
-        });
-      } else {
-        await updateDoc(userRef, {
-          lastActive: serverTimestamp()
-        });
-      }
+      await this.createOrUpdateUserDocument(user);
     } catch (error) {
       console.error('Error signing in anonymously:', error);
       throw error;
@@ -355,15 +517,14 @@ export class FirebaseService {
     
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ 
-      // Don't force account selection - only prompt if not already signed in
-      // This prevents the double-click issue
-      display: 'popup'
+      prompt: 'select_account'  // Let user choose account
     });
     
-    // Log the auth domain for debugging
-    console.log('Firebase Auth Domain:', this.auth.config.authDomain);
-    console.log('Current origin:', window.location.origin);
-    console.log('Expected redirect URI:', `${window.location.origin}/__/auth/handler`);
+    const usePopup = this.shouldUsePopup();
+    
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`🔐 Starting Google Sign-In with ${usePopup ? 'POPUP' : 'REDIRECT'}`);
+    console.log('═══════════════════════════════════════════════════════════');
     
     try {
       const currentUser = this.auth.currentUser;
@@ -437,104 +598,75 @@ export class FirebaseService {
         // Regular sign in
         result = await signInWithPopup(this.auth, provider, browserPopupRedirectResolver);
         user = result.user;
-      }
-      
-      const userRef = doc(this.db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        // Check if there are existing loadouts from anonymous account
-        const loadoutsRef = collection(this.db, 'loadouts');
-        const userLoadoutsQuery = query(loadoutsRef, where('userId', '==', user.uid));
-        const userLoadoutsSnap = await getDocs(userLoadoutsQuery);
-        const loadoutCount = userLoadoutsSnap.size;
-        const totalLikes = userLoadoutsSnap.docs.reduce((sum, doc) => {
-          const data = doc.data();
-          return sum + (data['likes'] || 0);
-        }, 0);
-        const totalViews = userLoadoutsSnap.docs.reduce((sum, doc) => {
-          const data = doc.data();
-          return sum + (data['views'] || 0);
-        }, 0);
-
-        await setDoc(userRef, {
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          lastActive: serverTimestamp(),
-          loadoutCount,
-          totalLikes,
-          totalViews,
-          createdAt: serverTimestamp(),
-          isAnonymous: false
-        });
-      } else {
-        // Update existing user document
-        await updateDoc(userRef, {
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          lastActive: serverTimestamp(),
-          isAnonymous: false
-        });
-      }
-
-      // Don't reset flag yet - only reset after dialog closes (if shown) or after a delay
-      // This prevents the header component from re-authenticating anonymously
-      // Force a refresh of loadouts after sign-in to ensure user's own loadouts are visible
-      this.refreshLoadouts();
-      
-      console.log('Sign-in complete:', {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        isAnonymous: user.isAnonymous,
-        providerData: user.providerData.map(p => ({
-          providerId: p.providerId,
-          email: p.email,
-          displayName: p.displayName
-        }))
-      });
-      
-      // Log the current auth state for debugging
-      console.log('Current auth state:', {
-        currentUser: this.auth.currentUser?.uid,
-        isAnonymous: this.auth.currentUser?.isAnonymous,
-        email: this.auth.currentUser?.email,
-        displayName: this.auth.currentUser?.displayName
-      });
-      
-      // Reset flag after a delay to ensure auth state is stable
-      // If a dialog is shown, it will reset the flag when it closes
-      setTimeout(() => {
-        // Only reset if flag is still set (dialog might have already reset it)
-        if (this.isSigningInWithGoogle) {
-          this.isSigningInWithGoogle = false;
+        
+        // Create or update user document
+        await this.createOrUpdateUserDocument(user);
+        
+        // Reset flag
+        this.isSigningInWithGoogle = false;
+        
+        // Refresh loadouts
+        await this.refreshLoadouts();
+        
+        // If they were anonymous, show a helpful message
+        if (wasAnonymous) {
+          setTimeout(() => {
+            this.dialog.open(SignInInfoComponent, {
+              width: '400px',
+              data: {
+                message: 'Signed in successfully!',
+                note: 'Note: Setups created while anonymous remain on the anonymous account. You can recreate them if needed.'
+              }
+            });
+          }, 500);
         }
-      }, 2000);
+        
+      } else {
+        // REDIRECT FLOW (mobile)
+        // Store in sessionStorage to persist across redirect
+        sessionStorage.setItem(this.SIGNIN_FLAG_KEY, 'true');
+        sessionStorage.setItem('authAction', 'signin');
+        
+        // Store if they were anonymous (for showing message after redirect)
+        if (currentUser?.isAnonymous) {
+          sessionStorage.setItem('wasAnonymous', 'true');
+        }
+        
+        console.log('Starting Google sign-in via redirect...');
+        await signInWithRedirect(this.auth, provider);
+        // Code after this won't execute - user is being redirected
+      }
     } catch (error: any) {
       // Reset flag on error
       this.isSigningInWithGoogle = false;
+      sessionStorage.removeItem(this.SIGNIN_FLAG_KEY);
+      sessionStorage.removeItem('authAction');
+      sessionStorage.removeItem('anonymousUid');
       
       // Don't treat user-closed popup as an error
-      // Check multiple ways the error code might be represented
-      const errorCode = error?.code || error?.a?.code || (error?.message?.includes('auth/popup-closed-by-user') ? 'auth/popup-closed-by-user' : null);
-      
-      if (errorCode === 'auth/popup-closed-by-user') {
-        // User cancelled - silently return, don't log or throw
+      const errorCode = error?.code;
+      if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+        console.log('User cancelled sign-in');
         return;
       }
       
-      // Log all errors for debugging
-      console.error('Sign-in error details:', {
-        code: error?.code,
-        message: error?.message,
-        stack: error?.stack
-      });
-
-      // Log redirect URI mismatch details for debugging
+      console.error('Error initiating sign-in:', error);
+      
+      // Handle popup-specific errors
       if (error?.code === 'auth/popup-blocked') {
-        console.error('Popup was blocked by browser. Please allow popups for this site and try again.');
-        alert('Sign-in popup was blocked.\n\nPlease:\n1. Allow popups for this site in your browser settings\n2. Try again\n\nOr refresh the page and click "Sign in" again.');
-      } else if (error?.message?.includes('redirect_uri_mismatch') || error?.code === 'auth/unauthorized-domain') {
+        console.warn('⚠️ Popup was blocked by browser');
+        this.dialog.open(SignInInfoComponent, {
+          width: '400px',
+          data: {
+            message: 'Popup Blocked',
+            note: 'Your browser blocked the sign-in popup. Please allow popups for this site in your browser settings and try again.\n\nOn mobile: Look for a popup blocker icon in your address bar.'
+          }
+        });
+        return;
+      }
+      
+      // Handle redirect-specific errors
+      if (error?.message?.includes('redirect_uri_mismatch') || error?.code === 'auth/unauthorized-domain') {
         console.error('═══════════════════════════════════════════════════════════');
         console.error('❌ REDIRECT URI MISMATCH ERROR');
         console.error('═══════════════════════════════════════════════════════════');
@@ -568,12 +700,8 @@ export class FirebaseService {
         console.error('5. Click SAVE');
         console.error('6. Wait 5-10 minutes for changes to propagate');
         console.error('═══════════════════════════════════════════════════════════');
-      } else {
-        // Log other errors (not user cancellations)
-        console.error('Error signing in with Google:', error);
       }
       
-      // Only throw non-user-cancellation errors
       throw error;
     }
   }
