@@ -76,8 +76,8 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   searchControl = new FormControl('');
   selectedCategories = new FormControl<Category['type'][]>([]);
   selectedTags = new FormControl<string[]>([]);
-  sortControl = new FormControl<'date' | 'likes' | 'name' | 'category'>('date');
-  sortDirectionControl = new FormControl<'asc' | 'desc'>('desc');
+  sortControl = new FormControl<'date' | 'likes' | 'name' | 'category'>('name');
+  sortDirectionControl = new FormControl<'asc' | 'desc'>('asc');
   showInstructions = !localStorage.getItem('hideInstructions');
   showMobileSearch = false;
   showAllTags = false;

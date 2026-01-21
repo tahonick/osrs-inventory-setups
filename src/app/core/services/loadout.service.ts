@@ -51,8 +51,8 @@ const DEFAULT_FILTERS: LoadoutFilters = {
   search: '',
   categories: [],
   tags: [],
-  sortBy: 'likes',
-  sortDirection: 'desc',
+  sortBy: 'name',
+  sortDirection: 'asc',
   showPersonalOnly: false,
   isPublic: undefined // undefined means show all public + user's own (handled client-side)
 };
@@ -94,19 +94,58 @@ export class LoadoutService {
   private async loadInitialData() {
     try {
       this.setPaginationLoading(true);
-      const result = await this.firebaseService.getLoadouts(this.createQueryOptions());
+      const isSearching = !!this.filters.value.search;
       
-      this.loadoutStateService.updateLoadouts(result.loadouts);
-      this.updatePaginationState(result.lastVisible, result.hasMore);
+      if (isSearching) {
+        // INCREMENTAL SEARCH LOADING
+        // Stage 1: Quick initial load (100 results) - shows results immediately
+        const initialOptions = this.createQueryOptions(100);
+        const initialResult = await this.firebaseService.getLoadouts(initialOptions);
+        
+        this.loadoutStateService.updateLoadouts(initialResult.loadouts);
+        this.updatePaginationState(initialResult.lastVisible, initialResult.hasMore);
+        this.setPaginationLoading(false);
+        
+        // Stage 2: Background load remaining results (400 more) - loads silently
+        if (initialResult.hasMore && initialResult.lastVisible) {
+          setTimeout(async () => {
+            try {
+              const moreOptions = this.createQueryOptions(400);
+              moreOptions.lastVisible = initialResult.lastVisible || undefined;
+              const moreResult = await this.firebaseService.getLoadouts(moreOptions);
+              
+              // Only append if user is still searching (filters haven't changed)
+              if (this.filters.value.search) {
+                const currentLoadouts = this.loadoutStateService.getCurrentLoadouts();
+                const currentIds = new Set(currentLoadouts.map(l => l.id));
+                const newLoadouts = moreResult.loadouts.filter(l => !currentIds.has(l.id));
+                
+                this.loadoutStateService.updateLoadouts([...currentLoadouts, ...newLoadouts]);
+                this.updatePaginationState(moreResult.lastVisible, moreResult.hasMore);
+              }
+            } catch (error) {
+              console.error('Error loading additional search results:', error);
+            }
+          }, 100); // Small delay to let initial results render first
+        }
+      } else {
+        // Normal pagination: Load one page at a time
+        const result = await this.firebaseService.getLoadouts(this.createQueryOptions());
+        
+        this.loadoutStateService.updateLoadouts(result.loadouts);
+        this.updatePaginationState(result.lastVisible, result.hasMore);
+      }
     } catch (error) {
       console.error('Error loading loadouts:', error);
       this.loadoutStateService.updateLoadouts([]);
     } finally {
-      this.setPaginationLoading(false);
+      if (!this.filters.value.search) {
+        this.setPaginationLoading(false);
+      }
     }
   }
 
-  private createQueryOptions(): LoadoutQueryOptions {
+  private createQueryOptions(overridePageSize?: number): LoadoutQueryOptions {
     const filters = this.filters.value;
     const { pageSize, lastVisible } = this.pagination.value;
 
@@ -128,13 +167,17 @@ export class LoadoutService {
       queryIsPublic = undefined;
     }
 
+    // Use override if provided (for incremental loading), otherwise use default
+    const effectivePageSize = overridePageSize || pageSize;
+
     return {
       categories: filters.categories.length > 0 ? filters.categories : undefined,
       sortBy: filters.sortBy,
       sortDirection: filters.sortDirection,
-      pageSize,
+      pageSize: effectivePageSize,
       lastVisible: lastVisible || undefined,
-      searchTerm: filters.search || undefined,
+      // searchTerm removed - filtering is done client-side in getFilteredLoadouts()
+      // We use incremental loading (100 then 400) for search to balance speed and completeness
       tags: filters.tags.length > 0 ? filters.tags : undefined,
       showPersonalOnly: filters.showPersonalOnly,
       isPublic: queryIsPublic,
