@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy, Renderer2 } from '@angular/core';
+import { Component, OnInit, OnDestroy, Renderer2, ViewChild } from '@angular/core';
+import { MatStepper } from '@angular/material/stepper';
 import { CommonModule, KeyValue } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
@@ -11,13 +12,20 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatStepperModule } from '@angular/material/stepper';
+import { FormsModule } from '@angular/forms';
 import { InventoryGridComponent } from '../../../inventory/components/inventory-grid/inventory-grid.component';
 import { EquipmentSlotsComponent } from '../../../equipment/components/equipment-slots/equipment-slots.component';
 import { RunePouchComponent } from '../../../inventory/components/rune-pouch/rune-pouch.component';
 import { BankTagLayoutGridComponent } from '../../../inventory/components/bank-tag-layout-grid/bank-tag-layout-grid.component';
+import { SetupDiffViewerComponent } from '../setup-diff-viewer/setup-diff-viewer.component';
+import { MatRadioModule } from '@angular/material/radio';
 import { OsrsApiService } from '../../../../core/services/osrs-api.service';
 import { LoadoutService } from '../../../../core/services/loadout.service';
 import { FirebaseService } from '../../../../core/services/firebase.service';
+import { DuplicateDetectionService, DuplicateMatch } from '../../../../core/services/duplicate-detection.service';
+import { ParsedSetup } from '../../../../core/services/file-parser.service';
 import { LoadoutData, Setup, Category, Item } from '../../../../shared/models/inventory.model';
 import { BankTagLayoutService } from '../../../../shared/services/bank-tag-layout.service';
 import { BankTagLayout, BankTagLayoutItem } from '../../../../shared/models/bank-tag-layout.model';
@@ -42,6 +50,7 @@ interface LoadoutPreview {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     MatDialogModule,
     MatButtonModule,
     MatFormFieldModule,
@@ -52,13 +61,19 @@ interface LoadoutPreview {
     MatSelectModule,
     MatDividerModule,
     MatChipsModule,
+    MatRadioModule,
+    MatProgressSpinnerModule,
+    MatStepperModule,
     InventoryGridComponent,
     EquipmentSlotsComponent,
     RunePouchComponent,
-    BankTagLayoutGridComponent
+    BankTagLayoutGridComponent,
+    SetupDiffViewerComponent
   ]
 })
 export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
+  @ViewChild('stepper', { static: false }) stepper?: MatStepper;
+
   private jsonInputSubject = new Subject<string>();
   private subscriptions: Subscription[] = [];
 
@@ -94,14 +109,19 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
     'Ironman'
   ];
 
+  duplicateMatch: DuplicateMatch | null = null;
+  detectingDuplicate = false;
+  duplicateAction: 'skip' | 'replace' | 'keep_both' | null = null;
+
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<LoadoutUploaderDialogComponent>,
+    public dialogRef: MatDialogRef<LoadoutUploaderDialogComponent>,
     private snackBar: MatSnackBar,
     private osrsApi: OsrsApiService,
     private loadoutService: LoadoutService,
     private firebaseService: FirebaseService,
     private bankTagLayoutService: BankTagLayoutService,
+    private duplicateDetection: DuplicateDetectionService,
     private renderer: Renderer2
   ) {
     this.jsonForm = this.fb.group({
@@ -396,6 +416,41 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
     return this.osrsApi.getItemName(Math.abs(id));
   }
 
+  getRunePouchSummary(): string {
+    if (!this.loadoutPreview?.setup?.rp || this.loadoutPreview.setup.rp.length === 0) {
+      return 'None';
+    }
+    
+    return this.loadoutPreview.setup.rp
+      .filter((rune): rune is Item => rune !== null)
+      .map(rune => {
+        const name = this.getItemName(rune.id);
+        const qty = rune.q || 1;
+        let indicator = '';
+        
+        if (rune.sc) {
+          switch (rune.sc) {
+            case 'Greater_Than':
+              indicator = ' >';
+              break;
+            case 'Less_Than':
+              indicator = ' <';
+              break;
+            case 'Not_Equal':
+              indicator = ' ≠';
+              break;
+          }
+        }
+        
+        if (rune.f) {
+          indicator += '*';
+        }
+        
+        return `${name} (${qty.toLocaleString()}${indicator})`;
+      })
+      .join(', ');
+  }
+
   getAfiItems(): KeyValue<string, Item>[] {
     if (!this.loadoutPreview?.setup?.afi) return [];
     return Object.entries(this.loadoutPreview.setup.afi).map(([key, value]) => ({
@@ -425,7 +480,150 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
     } as BankTagLayout;
   }
 
-  async onSubmit() {
+  async detectDuplicates(): Promise<void> {
+    if (!this.loadoutPreview || this.loadoutPreview.type !== 'inventory') {
+      // Only check duplicates for inventory setups - skip to configure step
+      this.stepper?.next();
+      return;
+    }
+
+    this.detectingDuplicate = true;
+    this.duplicateMatch = null;
+    this.duplicateAction = null;
+
+    try {
+      // Get existing loadouts
+      const existingLoadouts = await this.firebaseService.getLoadouts({ 
+        showPersonalOnly: false,
+        pageSize: 1000 // Get enough to check against
+      });
+
+      // Convert layout to number[] if it exists
+      const layoutAsNumbers = this.loadoutPreview.layout
+        ? this.loadoutPreview.layout.map(val => typeof val === 'string' ? parseInt(val, 10) : val)
+            .filter((val): val is number => typeof val === 'number' && !isNaN(val))
+        : undefined;
+
+      // Create a ParsedSetup-like object for duplicate detection
+      const parsedSetup: ParsedSetup = {
+        setup: this.loadoutPreview.setup,
+        layout: layoutAsNumbers,
+        metadata: {
+          fileName: 'single-upload',
+          originalFormat: this.loadoutPreview.originalFormat || '',
+          suggestedCategory: this.loadoutPreview.category,
+          detectedTags: this.jsonForm.get('tags')?.value || []
+        },
+        selected: true
+      };
+
+      // Find duplicates
+      const matches = this.duplicateDetection.findDuplicates(
+        [parsedSetup],
+        existingLoadouts.loadouts,
+        80 // 80% similarity threshold
+      );
+
+      if (matches.length > 0) {
+        // Found a duplicate - show review UI
+        this.duplicateMatch = matches[0]; // Take the first (highest similarity) match
+        
+        // Auto-set action for exact matches
+        if (this.isExactMatch(this.duplicateMatch)) {
+          this.duplicateAction = 'skip';
+        }
+        
+        // Move to duplicates step
+        this.stepper?.next();
+      } else {
+        // No duplicates - skip duplicates step and go to configure
+        this.stepper?.next();
+      }
+    } catch (error) {
+      console.error('Error detecting duplicates:', error);
+      // If duplicate check fails, proceed to configure step
+      this.stepper?.next();
+    } finally {
+      this.detectingDuplicate = false;
+    }
+  }
+
+  isExactMatch(match: DuplicateMatch): boolean {
+    if (match.similarityScore !== 100) {
+      return false;
+    }
+    
+    const diff = match.differences;
+    
+    const hasAdded = (diff.inventoryDiff.added.length + 
+                      diff.equipmentDiff.added.length + 
+                      (diff.runePouchDiff?.added.length || 0) +
+                      (diff.afiDiff?.added.length || 0)) > 0;
+    
+    const hasRemoved = (diff.inventoryDiff.removed.length + 
+                        diff.equipmentDiff.removed.length + 
+                        (diff.runePouchDiff?.removed.length || 0) +
+                        (diff.afiDiff?.removed.length || 0)) > 0;
+    
+    const hasQuantityChanged = (diff.inventoryDiff.quantityChanged.length +
+                                diff.equipmentDiff.quantityChanged.length +
+                                (diff.runePouchDiff?.quantityChanged.length || 0) +
+                                (diff.afiDiff?.quantityChanged.length || 0)) > 0;
+    
+    const hasFuzzy = (diff.equipmentDiff.fuzzyMatch?.length || 0) > 0 ||
+                     (diff.runePouchDiff?.fuzzyMatch?.length || 0) > 0;
+    
+    return !hasAdded && !hasRemoved && !hasQuantityChanged && !hasFuzzy;
+  }
+
+  canProceedFromUpload(): boolean {
+    return this.loadoutPreview !== null;
+  }
+
+  canProceedFromReview(): boolean {
+    return this.loadoutPreview !== null;
+  }
+
+  canProceedFromDuplicates(): boolean {
+    // If no duplicate match, can proceed
+    if (!this.duplicateMatch) return true;
+    
+    // If exact match, auto-skip is set
+    if (this.isExactMatch(this.duplicateMatch)) return true;
+    
+    // Otherwise need action selected
+    return this.duplicateAction !== null;
+  }
+
+  canProceedFromConfigure(): boolean {
+    return true; // Configuration is optional
+  }
+
+  async onReviewNext(): Promise<void> {
+    // Move to duplicates step (which will detect duplicates)
+    await this.detectDuplicates();
+  }
+
+  onDuplicatesNext(): void {
+    // If duplicate is being skipped, close dialog
+    if (this.duplicateMatch && this.duplicateAction === 'skip') {
+      this.snackBar.open('Duplicate skipped', 'Close', { duration: 2000 });
+      this.dialogRef.close(false);
+      return;
+    }
+    
+    // Otherwise proceed to configure step
+    if (this.stepper) {
+      this.stepper.next();
+    }
+  }
+
+  async onSubmit(): Promise<void> {
+    if (!this.loadoutPreview) return;
+    await this.performSubmit();
+  }
+
+  async performSubmit(): Promise<void> {
     if (!this.loadoutPreview) return;
 
     try {
@@ -461,7 +659,20 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
         ...(this.loadoutPreview.originalFormat && { originalFormat: this.loadoutPreview.originalFormat }) // Include originalFormat if it exists
       };
 
-      await this.loadoutService.createLoadout(loadoutData);
+      // Handle replace action
+      if (this.duplicateMatch && this.duplicateAction === 'replace') {
+        await this.loadoutService.replaceLoadout(this.duplicateMatch.existingSetup.id, loadoutData);
+        this.snackBar.open('Loadout replaced successfully', 'Close', { duration: 2000 });
+      } else {
+        // Handle keep_both or no duplicate
+        if (this.duplicateMatch && this.duplicateAction === 'keep_both') {
+          // Rename to avoid conflict
+          loadoutData.setup.name = `${loadoutData.setup.name} (imported)`;
+        }
+        await this.loadoutService.createLoadout(loadoutData);
+        this.snackBar.open('Loadout created successfully', 'Close', { duration: 2000 });
+      }
+
       this.dialogRef.close(true);
     } catch (error) {
       console.error('Failed to save loadout:', error);
@@ -477,6 +688,28 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
       
       this.snackBar.open(errorMessage, 'Close', { duration: 3000 });
     }
+  }
+
+  setDuplicateAction(action: 'skip' | 'replace' | 'keep_both'): void {
+    this.duplicateAction = action;
+  }
+
+  onDuplicateActionChanged(action: 'skip' | 'replace' | 'keep_both'): void {
+    this.duplicateAction = action;
+    if (this.duplicateMatch) {
+      this.duplicateMatch.action = action;
+    }
+  }
+
+  skipDuplicateStep(): void {
+    // Skip duplicates step and go to configure
+    if (this.stepper) {
+      this.stepper.next();
+    }
+  }
+
+  get currentUserId(): string | undefined {
+    return this.firebaseService.getCurrentUserSync()?.uid;
   }
 
   copyToClipboard(): void {

@@ -16,6 +16,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.HEAD]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.HEAD]) || isFuzzyMatch(equipment[SLOTS.HEAD], SLOTS.HEAD)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.HEAD], SLOTS.HEAD) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.HEAD]) || hasQuantityDifference(equipment[SLOTS.HEAD], SLOTS.HEAD)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.HEAD], SLOTS.HEAD) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.HEAD], SLOTS.HEAD)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.HEAD], SLOTS.HEAD)?.newQty) : ('Qty: ' + equipment[SLOTS.HEAD]?.q)">{{ hasQuantityDifference(equipment[SLOTS.HEAD], SLOTS.HEAD) ? '≠' : equipment[SLOTS.HEAD]?.q }}</span>
           </div>
         </div>
 
@@ -29,6 +31,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.CAPE]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.CAPE]) || isFuzzyMatch(equipment[SLOTS.CAPE], SLOTS.CAPE)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.CAPE], SLOTS.CAPE) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.CAPE]) || hasQuantityDifference(equipment[SLOTS.CAPE], SLOTS.CAPE)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.CAPE], SLOTS.CAPE) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.CAPE], SLOTS.CAPE)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.CAPE], SLOTS.CAPE)?.newQty) : ('Qty: ' + equipment[SLOTS.CAPE]?.q)">{{ hasQuantityDifference(equipment[SLOTS.CAPE], SLOTS.CAPE) ? '≠' : equipment[SLOTS.CAPE]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot amulet" [class.has-item]="equipment[SLOTS.AMULET]">
@@ -40,6 +44,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.AMULET]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.AMULET]) || isFuzzyMatch(equipment[SLOTS.AMULET], SLOTS.AMULET)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.AMULET], SLOTS.AMULET) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.AMULET]) || hasQuantityDifference(equipment[SLOTS.AMULET], SLOTS.AMULET)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.AMULET], SLOTS.AMULET) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.AMULET], SLOTS.AMULET)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.AMULET], SLOTS.AMULET)?.newQty) : ('Qty: ' + equipment[SLOTS.AMULET]?.q)">{{ hasQuantityDifference(equipment[SLOTS.AMULET], SLOTS.AMULET) ? '≠' : equipment[SLOTS.AMULET]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot ammo" [class.has-item]="equipment[SLOTS.AMMO]">
@@ -51,6 +57,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.AMMO]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.AMMO]) || isFuzzyMatch(equipment[SLOTS.AMMO], SLOTS.AMMO)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.AMMO], SLOTS.AMMO) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.AMMO]) || hasQuantityDifference(equipment[SLOTS.AMMO], SLOTS.AMMO)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.AMMO], SLOTS.AMMO) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.AMMO], SLOTS.AMMO)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.AMMO], SLOTS.AMMO)?.newQty) : ('Qty: ' + equipment[SLOTS.AMMO]?.q)">{{ hasQuantityDifference(equipment[SLOTS.AMMO], SLOTS.AMMO) ? '≠' : equipment[SLOTS.AMMO]?.q }}</span>
           </div>
         </div>
 
@@ -64,6 +72,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.WEAPON]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.WEAPON]) || isFuzzyMatch(equipment[SLOTS.WEAPON], SLOTS.WEAPON)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.WEAPON], SLOTS.WEAPON) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.WEAPON]) || hasQuantityDifference(equipment[SLOTS.WEAPON], SLOTS.WEAPON)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.WEAPON], SLOTS.WEAPON) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.WEAPON], SLOTS.WEAPON)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.WEAPON], SLOTS.WEAPON)?.newQty) : ('Qty: ' + equipment[SLOTS.WEAPON]?.q)">{{ hasQuantityDifference(equipment[SLOTS.WEAPON], SLOTS.WEAPON) ? '≠' : equipment[SLOTS.WEAPON]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot body" [class.has-item]="equipment[SLOTS.BODY]">
@@ -75,6 +85,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.BODY]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.BODY]) || isFuzzyMatch(equipment[SLOTS.BODY], SLOTS.BODY)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.BODY], SLOTS.BODY) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.BODY]) || hasQuantityDifference(equipment[SLOTS.BODY], SLOTS.BODY)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.BODY], SLOTS.BODY) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.BODY], SLOTS.BODY)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.BODY], SLOTS.BODY)?.newQty) : ('Qty: ' + equipment[SLOTS.BODY]?.q)">{{ hasQuantityDifference(equipment[SLOTS.BODY], SLOTS.BODY) ? '≠' : equipment[SLOTS.BODY]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot shield" [class.has-item]="equipment[SLOTS.SHIELD]">
@@ -86,6 +98,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.SHIELD]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.SHIELD]) || isFuzzyMatch(equipment[SLOTS.SHIELD], SLOTS.SHIELD)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.SHIELD], SLOTS.SHIELD) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.SHIELD]) || hasQuantityDifference(equipment[SLOTS.SHIELD], SLOTS.SHIELD)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.SHIELD], SLOTS.SHIELD) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.SHIELD], SLOTS.SHIELD)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.SHIELD], SLOTS.SHIELD)?.newQty) : ('Qty: ' + equipment[SLOTS.SHIELD]?.q)">{{ hasQuantityDifference(equipment[SLOTS.SHIELD], SLOTS.SHIELD) ? '≠' : equipment[SLOTS.SHIELD]?.q }}</span>
           </div>
         </div>
 
@@ -99,6 +113,10 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.LEGS]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.LEGS]) || isFuzzyMatch(equipment[SLOTS.LEGS], SLOTS.LEGS)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.LEGS], SLOTS.LEGS) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.LEGS]) || hasQuantityDifference(equipment[SLOTS.LEGS], SLOTS.LEGS)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.LEGS], SLOTS.LEGS) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.LEGS], SLOTS.LEGS)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.LEGS], SLOTS.LEGS)?.newQty) : ('Qty: ' + equipment[SLOTS.LEGS]?.q)">
+              {{ hasQuantityDifference(equipment[SLOTS.LEGS], SLOTS.LEGS) ? '≠' : (equipment[SLOTS.LEGS]?.q || '') }}
+            </span>
           </div>
         </div>
 
@@ -112,6 +130,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.GLOVES]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.GLOVES]) || isFuzzyMatch(equipment[SLOTS.GLOVES], SLOTS.GLOVES)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.GLOVES], SLOTS.GLOVES) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.GLOVES]) || hasQuantityDifference(equipment[SLOTS.GLOVES], SLOTS.GLOVES)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.GLOVES], SLOTS.GLOVES) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.GLOVES], SLOTS.GLOVES)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.GLOVES], SLOTS.GLOVES)?.newQty) : ('Qty: ' + equipment[SLOTS.GLOVES]?.q)">{{ hasQuantityDifference(equipment[SLOTS.GLOVES], SLOTS.GLOVES) ? '≠' : equipment[SLOTS.GLOVES]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot boots" [class.has-item]="equipment[SLOTS.BOOTS]">
@@ -123,6 +143,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.BOOTS]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.BOOTS]) || isFuzzyMatch(equipment[SLOTS.BOOTS], SLOTS.BOOTS)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.BOOTS], SLOTS.BOOTS) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.BOOTS]) || hasQuantityDifference(equipment[SLOTS.BOOTS], SLOTS.BOOTS)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.BOOTS], SLOTS.BOOTS) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.BOOTS], SLOTS.BOOTS)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.BOOTS], SLOTS.BOOTS)?.newQty) : ('Qty: ' + equipment[SLOTS.BOOTS]?.q)">{{ hasQuantityDifference(equipment[SLOTS.BOOTS], SLOTS.BOOTS) ? '≠' : equipment[SLOTS.BOOTS]?.q }}</span>
           </div>
         </div>
         <div class="equipment-slot ring" [class.has-item]="equipment[SLOTS.RING]">
@@ -134,6 +156,8 @@
                  width="32"
                  height="32">
             <div class="item-tooltip">{{ getItemName(equipment[SLOTS.RING]!.id) }}</div>
+            <span *ngIf="isVariant(equipment[SLOTS.RING]) || isFuzzyMatch(equipment[SLOTS.RING], SLOTS.RING)" class="fuzzy-indicator" [title]="isFuzzyMatch(equipment[SLOTS.RING], SLOTS.RING) ? 'Fuzzy match (different variant)' : 'Item variant'">*</span>
+            <span *ngIf="hasQuantity(equipment[SLOTS.RING]) || hasQuantityDifference(equipment[SLOTS.RING], SLOTS.RING)" class="quantity-indicator" [title]="hasQuantityDifference(equipment[SLOTS.RING], SLOTS.RING) ? ('Qty: ' + hasQuantityDifference(equipment[SLOTS.RING], SLOTS.RING)?.oldQty + ' → ' + hasQuantityDifference(equipment[SLOTS.RING], SLOTS.RING)?.newQty) : ('Qty: ' + equipment[SLOTS.RING]?.q)">{{ hasQuantityDifference(equipment[SLOTS.RING], SLOTS.RING) ? '≠' : equipment[SLOTS.RING]?.q }}</span>
           </div>
         </div>
       </div>

@@ -13,6 +13,7 @@ export interface DuplicateMatch {
 export interface DiffResult {
   inventoryDiff: ItemDiff;
   equipmentDiff: ItemDiff;
+  runePouchDiff?: ItemDiff;
   afiDiff?: ItemDiff;
   overallDifferences: string[];
 }
@@ -21,6 +22,7 @@ export interface ItemDiff {
   added: Item[]; // Items in new but not in existing
   removed: Item[]; // Items in existing but not in new
   quantityChanged: Array<{ item: Item; oldQty: number; newQty: number }>;
+  fuzzyMatch: Array<{ item1: Item; item2: Item }>; // Items that match via fuzzy matching (different variants)
   identical: Item[];
 }
 
@@ -29,10 +31,13 @@ export interface ItemDiff {
 })
 export class DuplicateDetectionService {
   private readonly DEFAULT_THRESHOLD = 80; // 80% similarity
+  // Weights focus on core inventory and gear for duplicate detection
+  // Rune pouch and quantity differences are shown but don't prevent duplicate flagging
   private readonly WEIGHTS = {
-    inventory: 0.5, // 50%
-    equipment: 0.4, // 40%
-    afi: 0.1 // 10%
+    inventory: 0.45, // 45% - core inventory is most important
+    equipment: 0.40, // 40% - equipment is very important (uses fuzzy matching)
+    runePouch: 0.10, // 10% - rune pouch differences are less critical
+    afi: 0.05 // 5% - additional filtered items are least important
   };
 
   constructor() {}
@@ -77,12 +82,14 @@ export class DuplicateDetectionService {
   calculateSimilarity(setup1: Setup, setup2: Setup): number {
     const invSimilarity = this.compareInventory(setup1.inv, setup2.inv);
     const eqSimilarity = this.compareEquipment(setup1.eq, setup2.eq);
+    const rpSimilarity = this.compareRunePouch(setup1.rp || [], setup2.rp || []);
     const afiSimilarity = this.compareAfi(setup1.afi || {}, setup2.afi || {});
 
     // Weighted average
     const totalSimilarity =
       invSimilarity * this.WEIGHTS.inventory +
       eqSimilarity * this.WEIGHTS.equipment +
+      rpSimilarity * this.WEIGHTS.runePouch +
       afiSimilarity * this.WEIGHTS.afi;
 
     return Math.round(totalSimilarity * 100);
@@ -134,6 +141,7 @@ export class DuplicateDetectionService {
 
   /**
    * Compare equipment arrays (position matters for equipment)
+   * Uses fuzzy matching to handle item variants (e.g., charged vs uncharged)
    */
   private compareEquipment(eq1: (Item | null)[], eq2: (Item | null)[]): number {
     let matches = 0;
@@ -146,14 +154,82 @@ export class DuplicateDetectionService {
       if (!item1 && !item2) {
         // Both slots empty
         matches++;
-      } else if (item1 && item2 && item1.id === item2.id) {
-        // Same item in same slot
-        matches++;
+      } else if (item1 && item2) {
+        // Use fuzzy matching: normalize item IDs (handles variants like charged/uncharged)
+        const normalizedId1 = this.normalizeItemId(item1.id);
+        const normalizedId2 = this.normalizeItemId(item2.id);
+        
+        if (normalizedId1 === normalizedId2) {
+          // Same item (or variant) in same slot
+          matches++;
+        }
       }
       // If different items or one empty, no match
     }
 
     return matches / totalSlots;
+  }
+
+  /**
+   * Compare rune pouch arrays (position matters, considers quantities)
+   */
+  private compareRunePouch(rp1: (Item | null)[], rp2: (Item | null)[]): number {
+    // If both are empty or undefined, they're 100% similar
+    if ((!rp1 || rp1.length === 0) && (!rp2 || rp2.length === 0)) {
+      return 1.0;
+    }
+
+    // If one is empty and the other isn't, they're 0% similar
+    if ((!rp1 || rp1.length === 0) || (!rp2 || rp2.length === 0)) {
+      return 0.0;
+    }
+
+    // Normalize to same length (rune pouch can have up to 4 slots)
+    const maxLength = Math.max(rp1.length, rp2.length);
+    let matches = 0;
+    let totalSlots = 0;
+
+    for (let i = 0; i < maxLength; i++) {
+      const item1 = rp1[i] || null;
+      const item2 = rp2[i] || null;
+
+      totalSlots++;
+
+      if (!item1 && !item2) {
+        // Both slots empty
+        matches++;
+      } else if (item1 && item2) {
+        // Normalize item IDs for fuzzy matching
+        const normalizedId1 = this.normalizeItemId(item1.id);
+        const normalizedId2 = this.normalizeItemId(item2.id);
+        
+        if (normalizedId1 === normalizedId2) {
+          // Same rune type - check quantity similarity
+          const qty1 = item1.q || 1;
+          const qty2 = item2.q || 1;
+          
+          // Calculate quantity similarity (partial match if quantities differ)
+          const minQty = Math.min(qty1, qty2);
+          const maxQty = Math.max(qty1, qty2);
+          const qtySimilarity = maxQty > 0 ? minQty / maxQty : 0;
+          
+          // Weight: 70% for item match, 30% for quantity match
+          matches += 0.7 + (0.3 * qtySimilarity);
+        }
+      }
+      // If different items or one empty, no match
+    }
+
+    return totalSlots > 0 ? matches / totalSlots : 0;
+  }
+
+  /**
+   * Normalize item ID for fuzzy matching
+   * Handles variants like charged/uncharged versions by using absolute value
+   * In OSRS, negative IDs often represent variants of the same base item
+   */
+  private normalizeItemId(itemId: number): number {
+    return Math.abs(itemId);
   }
 
   /**
@@ -193,10 +269,14 @@ export class DuplicateDetectionService {
       this.extractItems(setup2.inv)
     );
 
-    const equipmentDiff = this.calculateItemDiff(
-      this.extractItems(setup1.eq),
-      this.extractItems(setup2.eq)
-    );
+    // For equipment, compare by position (slot-by-slot)
+    const equipmentDiff = this.calculateEquipmentDiff(setup1.eq, setup2.eq);
+
+    // For rune pouch, compare by position (slot-by-slot) with fuzzy matching
+    let runePouchDiff: ItemDiff | undefined;
+    if (setup1.rp || setup2.rp) {
+      runePouchDiff = this.calculateRunePouchDiff(setup1.rp || [], setup2.rp || []);
+    }
 
     let afiDiff: ItemDiff | undefined;
     if (setup1.afi || setup2.afi) {
@@ -209,9 +289,13 @@ export class DuplicateDetectionService {
     // Generate human-readable difference summary
     const overallDifferences: string[] = [];
 
-    const totalAdded = inventoryDiff.added.length + equipmentDiff.added.length + (afiDiff?.added.length || 0);
-    const totalRemoved = inventoryDiff.removed.length + equipmentDiff.removed.length + (afiDiff?.removed.length || 0);
-    const totalQtyChanged = inventoryDiff.quantityChanged.length + equipmentDiff.quantityChanged.length + (afiDiff?.quantityChanged.length || 0);
+    const totalAdded = inventoryDiff.added.length + equipmentDiff.added.length + 
+      (runePouchDiff?.added.length || 0) + (afiDiff?.added.length || 0);
+    const totalRemoved = inventoryDiff.removed.length + equipmentDiff.removed.length + 
+      (runePouchDiff?.removed.length || 0) + (afiDiff?.removed.length || 0);
+    const totalQtyChanged = inventoryDiff.quantityChanged.length + equipmentDiff.quantityChanged.length + 
+      (runePouchDiff?.quantityChanged.length || 0) + (afiDiff?.quantityChanged.length || 0);
+    const totalFuzzy = equipmentDiff.fuzzyMatch.length + (runePouchDiff?.fuzzyMatch.length || 0);
 
     if (totalAdded > 0) {
       overallDifferences.push(`+${totalAdded} new item${totalAdded > 1 ? 's' : ''}`);
@@ -222,6 +306,9 @@ export class DuplicateDetectionService {
     if (totalQtyChanged > 0) {
       overallDifferences.push(`${totalQtyChanged} quantity change${totalQtyChanged > 1 ? 's' : ''}`);
     }
+    if (totalFuzzy > 0) {
+      overallDifferences.push(`${totalFuzzy} variant difference${totalFuzzy > 1 ? 's' : ''} (fuzzy match)`);
+    }
 
     if (overallDifferences.length === 0) {
       overallDifferences.push('Identical');
@@ -230,49 +317,258 @@ export class DuplicateDetectionService {
     return {
       inventoryDiff,
       equipmentDiff,
+      runePouchDiff,
       afiDiff,
       overallDifferences
     };
   }
 
   /**
-   * Calculate item-level differences
+   * Calculate equipment differences (position-aware, with fuzzy matching)
    */
-  private calculateItemDiff(items1: Item[], items2: Item[]): ItemDiff {
-    const map1 = this.createItemCountMap(items1);
-    const map2 = this.createItemCountMap(items2);
-
+  private calculateEquipmentDiff(eq1: (Item | null)[], eq2: (Item | null)[]): ItemDiff {
     const added: Item[] = [];
     const removed: Item[] = [];
     const quantityChanged: Array<{ item: Item; oldQty: number; newQty: number }> = [];
+    const fuzzyMatch: Array<{ item1: Item; item2: Item }> = [];
     const identical: Item[] = [];
 
-    const allItemIds = new Set([...map1.keys(), ...map2.keys()]);
+    const maxLength = Math.max(eq1.length, eq2.length);
 
-    for (const itemId of allItemIds) {
-      const qty1 = map1.get(itemId) || 0;
-      const qty2 = map2.get(itemId) || 0;
+    for (let i = 0; i < maxLength; i++) {
+      const item1 = eq1[i] || null;
+      const item2 = eq2[i] || null;
 
-      if (qty1 === 0 && qty2 > 0) {
-        // Item added in setup2
-        added.push({ id: itemId, q: qty2 });
-      } else if (qty1 > 0 && qty2 === 0) {
-        // Item removed in setup2
-        removed.push({ id: itemId, q: qty1 });
-      } else if (qty1 !== qty2) {
-        // Quantity changed
-        quantityChanged.push({
-          item: { id: itemId, q: qty2 },
-          oldQty: qty1,
-          newQty: qty2
-        });
-      } else {
-        // Identical
-        identical.push({ id: itemId, q: qty1 });
+      if (!item1 && !item2) {
+        // Both empty - skip
+        continue;
+      } else if (!item1 && item2) {
+        // Added in setup2
+        added.push(item2);
+      } else if (item1 && !item2) {
+        // Removed in setup2
+        removed.push(item1);
+      } else if (item1 && item2) {
+        // Both have items - compare
+        if (item1.id === item2.id) {
+          // Exact match
+          if (item1.q === item2.q) {
+            identical.push(item1);
+          } else {
+            // Quantity difference
+            quantityChanged.push({
+              item: item2,
+              oldQty: item1.q || 1,
+              newQty: item2.q || 1
+            });
+          }
+        } else {
+          // Different IDs - check for fuzzy match
+          const normalizedId1 = this.normalizeItemId(item1.id);
+          const normalizedId2 = this.normalizeItemId(item2.id);
+          
+          if (normalizedId1 === normalizedId2) {
+            // Fuzzy match - same base item, different variant
+            fuzzyMatch.push({ item1, item2 });
+          } else {
+            // Completely different items
+            removed.push(item1);
+            added.push(item2);
+          }
+        }
       }
     }
 
-    return { added, removed, quantityChanged, identical };
+    return { added, removed, quantityChanged, fuzzyMatch, identical };
+  }
+
+  /**
+   * Calculate rune pouch differences (position-aware, with fuzzy matching and quantity consideration)
+   */
+  private calculateRunePouchDiff(rp1: (Item | null)[], rp2: (Item | null)[]): ItemDiff {
+    const added: Item[] = [];
+    const removed: Item[] = [];
+    const quantityChanged: Array<{ item: Item; oldQty: number; newQty: number }> = [];
+    const fuzzyMatch: Array<{ item1: Item; item2: Item }> = [];
+    const identical: Item[] = [];
+
+    const maxLength = Math.max(rp1.length, rp2.length);
+
+    for (let i = 0; i < maxLength; i++) {
+      const item1 = rp1[i] || null;
+      const item2 = rp2[i] || null;
+
+      if (!item1 && !item2) {
+        // Both empty - skip
+        continue;
+      } else if (!item1 && item2) {
+        // Added in setup2
+        added.push(item2);
+      } else if (item1 && !item2) {
+        // Removed in setup2
+        removed.push(item1);
+      } else if (item1 && item2) {
+        // Both have items - compare
+        const normalizedId1 = this.normalizeItemId(item1.id);
+        const normalizedId2 = this.normalizeItemId(item2.id);
+        
+        if (item1.id === item2.id) {
+          // Exact match
+          const qty1 = item1.q || 1;
+          const qty2 = item2.q || 1;
+          if (qty1 === qty2) {
+            identical.push(item1);
+          } else {
+            // Quantity difference
+            quantityChanged.push({
+              item: item2,
+              oldQty: qty1,
+              newQty: qty2
+            });
+          }
+        } else if (normalizedId1 === normalizedId2) {
+          // Fuzzy match - same base rune, different variant
+          fuzzyMatch.push({ item1, item2 });
+          // Also check quantity difference
+          const qty1 = item1.q || 1;
+          const qty2 = item2.q || 1;
+          if (qty1 !== qty2) {
+            quantityChanged.push({
+              item: item2,
+              oldQty: qty1,
+              newQty: qty2
+            });
+          }
+        } else {
+          // Completely different runes
+          removed.push(item1);
+          added.push(item2);
+        }
+      }
+    }
+
+    return { added, removed, quantityChanged, fuzzyMatch, identical };
+  }
+
+  /**
+   * Calculate item-level differences (for inventory and AFI - position-independent)
+   * @param useFuzzyMatching If true, uses normalized item IDs for comparison (handles variants)
+   */
+  private calculateItemDiff(items1: Item[], items2: Item[], useFuzzyMatching: boolean = false): ItemDiff {
+    const added: Item[] = [];
+    const removed: Item[] = [];
+    const quantityChanged: Array<{ item: Item; oldQty: number; newQty: number }> = [];
+    const fuzzyMatch: Array<{ item1: Item; item2: Item }> = [];
+    const identical: Item[] = [];
+
+    if (useFuzzyMatching) {
+      // For fuzzy matching, we need to compare items more carefully
+      // to detect fuzzy matches vs exact matches vs quantity differences
+      const map1 = this.createItemCountMap(items1);
+      const map2 = this.createItemCountMap(items2);
+      const fuzzyMap1 = this.createItemCountMapFuzzy(items1);
+      const fuzzyMap2 = this.createItemCountMapFuzzy(items2);
+
+      // Track which items we've processed
+      const processed1 = new Set<number>();
+      const processed2 = new Set<number>();
+
+      // First, find exact matches and quantity changes
+      for (const [itemId, qty1] of map1.entries()) {
+        const qty2 = map2.get(itemId) || 0;
+        processed1.add(itemId);
+        processed2.add(itemId);
+
+        if (qty2 > 0) {
+          if (qty1 === qty2) {
+            identical.push({ id: itemId, q: qty1 });
+          } else {
+            quantityChanged.push({
+              item: { id: itemId, q: qty2 },
+              oldQty: qty1,
+              newQty: qty2
+            });
+          }
+        }
+      }
+
+      // Now find fuzzy matches (normalized ID matches but actual ID differs)
+      for (const item1 of items1) {
+        if (processed1.has(item1.id)) continue;
+
+        const normalizedId1 = this.normalizeItemId(item1.id);
+        let foundFuzzy = false;
+
+        for (const item2 of items2) {
+          if (processed2.has(item2.id)) continue;
+
+          const normalizedId2 = this.normalizeItemId(item2.id);
+          
+          if (normalizedId1 === normalizedId2 && item1.id !== item2.id) {
+            // Fuzzy match - same base item, different variant
+            fuzzyMatch.push({ item1, item2 });
+            processed1.add(item1.id);
+            processed2.add(item2.id);
+            foundFuzzy = true;
+            break;
+          }
+        }
+
+        if (!foundFuzzy) {
+          // Check if there's a fuzzy match by normalized ID in the maps
+          const fuzzyQty2 = fuzzyMap2.get(normalizedId1) || 0;
+          if (fuzzyQty2 > 0) {
+            // There's a fuzzy match, but we need to find the actual item
+            for (const item2 of items2) {
+              if (processed2.has(item2.id)) continue;
+              const normalizedId2 = this.normalizeItemId(item2.id);
+              if (normalizedId1 === normalizedId2) {
+                fuzzyMatch.push({ item1, item2 });
+                processed1.add(item1.id);
+                processed2.add(item2.id);
+                break;
+              }
+            }
+          } else {
+            removed.push(item1);
+          }
+        }
+      }
+
+      // Find items added in setup2
+      for (const item2 of items2) {
+        if (!processed2.has(item2.id)) {
+          added.push(item2);
+        }
+      }
+    } else {
+      // Exact matching (for inventory)
+      const map1 = this.createItemCountMap(items1);
+      const map2 = this.createItemCountMap(items2);
+
+      const allItemIds = new Set([...map1.keys(), ...map2.keys()]);
+
+      for (const itemId of allItemIds) {
+        const qty1 = map1.get(itemId) || 0;
+        const qty2 = map2.get(itemId) || 0;
+
+        if (qty1 === 0 && qty2 > 0) {
+          added.push({ id: itemId, q: qty2 });
+        } else if (qty1 > 0 && qty2 === 0) {
+          removed.push({ id: itemId, q: qty1 });
+        } else if (qty1 !== qty2) {
+          quantityChanged.push({
+            item: { id: itemId, q: qty2 },
+            oldQty: qty1,
+            newQty: qty2
+          });
+        } else {
+          identical.push({ id: itemId, q: qty1 });
+        }
+      }
+    }
+
+    return { added, removed, quantityChanged, fuzzyMatch, identical };
   }
 
   /**
@@ -291,6 +587,22 @@ export class DuplicateDetectionService {
     for (const item of items) {
       const currentQty = map.get(item.id) || 0;
       map.set(item.id, currentQty + (item.q || 1));
+    }
+
+    return map;
+  }
+
+  /**
+   * Create a map of normalized item ID to total quantity (for fuzzy matching)
+   * Groups item variants (e.g., charged/uncharged) together
+   */
+  private createItemCountMapFuzzy(items: Item[]): Map<number, number> {
+    const map = new Map<number, number>();
+
+    for (const item of items) {
+      const normalizedId = this.normalizeItemId(item.id);
+      const currentQty = map.get(normalizedId) || 0;
+      map.set(normalizedId, currentQty + (item.q || 1));
     }
 
     return map;

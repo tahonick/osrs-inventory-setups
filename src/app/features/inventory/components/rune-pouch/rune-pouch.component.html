@@ -5,11 +5,15 @@
 <div class="rune-pouch-wrapper">
   <div class="rune-pouch">
     <div class="rune-slots">
-      <div class="rune-slot" *ngFor="let rune of runes">
+      <div class="rune-slot" *ngFor="let rune of runes; let i = index">
         <div class="item" *ngIf="rune">
           <img [src]="getItemImageUrl(rune.id)" [alt]="'Item ' + rune.id">
           <div class="item-tooltip">{{ getItemName(rune.id) }}</div>
           <span class="quantity" *ngIf="rune.q">{{ rune.q | number }}</span>
+          <span *ngIf="isVariant(rune)" class="fuzzy-indicator" title="Item variant">*</span>
+          <span *ngIf="getSimilarityComparison(rune)" class="similarity-indicator" [title]="'Quantity comparison: ' + getSimilarityComparison(rune)">
+            {{ getSimilarityComparison(rune) }}
+          </span>
         </div>
       </div>
     </div>

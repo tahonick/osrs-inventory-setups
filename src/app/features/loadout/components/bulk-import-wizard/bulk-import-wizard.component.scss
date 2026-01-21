@@ -615,6 +615,190 @@
 
 // ===== STEP 3: DUPLICATES =====
 
+.exact-matches-accordion {
+  margin-bottom: 24px;
+  background: rgba(76, 175, 80, 0.1) !important;
+  border: 2px solid rgba(76, 175, 80, 0.3) !important;
+
+  ::ng-deep .mat-expansion-panel-header {
+    background: rgba(76, 175, 80, 0.05) !important;
+    padding: 16px 24px;
+
+    &:hover {
+      background: rgba(76, 175, 80, 0.1) !important;
+    }
+  }
+
+  ::ng-deep .mat-expansion-panel-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    color: #4caf50;
+
+    .accordion-icon {
+      color: #4caf50;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+
+    .accordion-title {
+      font-size: 1.1rem;
+    }
+  }
+
+  ::ng-deep .mat-expansion-panel-header-description {
+    color: rgba(76, 175, 80, 0.8);
+    font-size: 0.95rem;
+    justify-content: flex-end;
+  }
+
+  .exact-matches-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .exact-match-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      border-left: 3px solid #4caf50;
+
+      .exact-match-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        strong {
+          color: #81c784;
+          font-size: 1rem;
+        }
+
+        .exact-match-details {
+          font-size: 0.85rem;
+          opacity: 0.7;
+          color: rgba(255, 255, 255, 0.8);
+        }
+      }
+
+      .skip-icon {
+        color: #4caf50;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+}
+
+.non-exact-matches {
+  margin-top: 24px;
+}
+
+.duplicate-filter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  position: relative;
+
+  // Desktop: Show button, hide form field
+  .filter-button-desktop {
+    display: none;
+    
+    @media (min-width: 960px) {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.95rem;
+      cursor: pointer;
+      min-width: auto;
+      
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      
+      .filter-count-badge {
+        margin-left: 8px;
+        padding: 2px 8px;
+        background: rgba(33, 150, 243, 0.3);
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Mobile/Tablet: Show form field, hide button
+  .filter-mobile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    width: 100%;
+    
+    @media (min-width: 960px) {
+      display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
+      
+      mat-form-field {
+        display: none !important;
+      }
+    }
+
+    mat-form-field {
+      flex: 0 0 auto;
+      min-width: 200px;
+    }
+
+    .filter-count {
+      margin-left: auto;
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+  }
+}
+
+// Menu styling
+::ng-deep .filter-menu {
+  .mat-mdc-menu-item {
+    &.active {
+      background: rgba(33, 150, 243, 0.1);
+      
+      mat-icon {
+        color: #2196f3;
+      }
+    }
+    
+    mat-icon {
+      margin-right: 12px;
+    }
+  }
+}
+
 .batch-actions {
   display: flex;
   align-items: center;

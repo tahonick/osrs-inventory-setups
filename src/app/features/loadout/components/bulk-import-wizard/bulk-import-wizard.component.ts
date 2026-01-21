@@ -17,6 +17,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatMenuModule } from '@angular/material/menu';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Observable } from 'rxjs';
 import { map, startWith } from 'rxjs/operators';
@@ -86,6 +88,8 @@ interface WizardState {
     MatInputModule,
     MatDividerModule,
     MatAutocompleteModule,
+    MatExpansionModule,
+    MatMenuModule,
     SetupDiffViewerComponent,
     FilterNullPipe
   ]
@@ -161,6 +165,27 @@ export class BulkImportWizardComponent implements OnInit {
   detectingDuplicates = false;
   existingLoadouts: LoadoutData[] = [];
   currentUserId: string | undefined;
+  duplicateFilter: 'all' | 'exact' | 'fuzzy' | 'quantity' | 'variants' = 'all';
+
+  onDuplicateFilterChange(): void {
+    // Reset to first match when filter changes
+    this.state.currentDuplicateIndex = 0;
+  }
+
+  getFilterLabel(): string {
+    switch (this.duplicateFilter) {
+      case 'all':
+        return `All Matches (${this.nonExactMatches.length})`;
+      case 'fuzzy':
+        return 'Fuzzy Matches';
+      case 'quantity':
+        return 'Quantity Differences';
+      case 'variants':
+        return 'Item Variants';
+      default:
+        return 'Filter';
+    }
+  }
 
   constructor(
     private dialogRef: MatDialogRef<BulkImportWizardComponent>,
@@ -392,14 +417,24 @@ export class BulkImportWizardComponent implements OnInit {
         80 // 80% threshold
       );
 
+      // Auto-set exact matches to 'skip'
+      this.state.duplicateMatches.forEach(match => {
+        if (this.isExactMatch(match)) {
+          match.action = 'skip';
+        }
+      });
+
+      const exactCount = this.exactMatches.length;
+      const nonExactCount = this.nonExactMatches.length;
+
       if (this.state.duplicateMatches.length === 0) {
         this.snackBar.open('No duplicates found!', 'Close', { duration: 3000 });
       } else {
-        this.snackBar.open(
-          `Found ${this.state.duplicateMatches.length} potential duplicate${this.state.duplicateMatches.length > 1 ? 's' : ''}`,
-          'Close',
-          { duration: 3000 }
-        );
+        let message = `Found ${this.state.duplicateMatches.length} potential duplicate${this.state.duplicateMatches.length > 1 ? 's' : ''}`;
+        if (exactCount > 0) {
+          message += ` (${exactCount} exact match${exactCount > 1 ? 'es' : ''} will be auto-skipped)`;
+        }
+        this.snackBar.open(message, 'Close', { duration: 3000 });
       }
     } catch (error) {
       console.error('Error detecting duplicates:', error);
@@ -410,11 +445,103 @@ export class BulkImportWizardComponent implements OnInit {
   }
 
   get currentDuplicateMatch(): DuplicateMatch | null {
-    return this.state.duplicateMatches[this.state.currentDuplicateIndex] || null;
+    const filtered = this.getFilteredDuplicates();
+    // Ensure index is within bounds
+    if (this.state.currentDuplicateIndex >= filtered.length) {
+      this.state.currentDuplicateIndex = Math.max(0, filtered.length - 1);
+    }
+    return filtered[this.state.currentDuplicateIndex] || null;
+  }
+
+  /**
+   * Check if a duplicate match is 100% exact (identical in all ways)
+   */
+  isExactMatch(match: DuplicateMatch): boolean {
+    // Must be 100% similar
+    if (match.similarityScore !== 100) {
+      return false;
+    }
+    
+    const diff = match.differences;
+    
+    // Check that there are no differences at all
+    const hasAdded = (diff.inventoryDiff.added.length + 
+                      diff.equipmentDiff.added.length + 
+                      (diff.runePouchDiff?.added.length || 0) +
+                      (diff.afiDiff?.added.length || 0)) > 0;
+    
+    const hasRemoved = (diff.inventoryDiff.removed.length + 
+                        diff.equipmentDiff.removed.length + 
+                        (diff.runePouchDiff?.removed.length || 0) +
+                        (diff.afiDiff?.removed.length || 0)) > 0;
+    
+    const hasQuantityChanged = (diff.inventoryDiff.quantityChanged.length +
+                                diff.equipmentDiff.quantityChanged.length +
+                                (diff.runePouchDiff?.quantityChanged.length || 0) +
+                                (diff.afiDiff?.quantityChanged.length || 0)) > 0;
+    
+    const hasFuzzy = (diff.equipmentDiff.fuzzyMatch?.length || 0) > 0 ||
+                     (diff.runePouchDiff?.fuzzyMatch?.length || 0) > 0;
+    
+    // Exact match means no differences at all
+    return !hasAdded && !hasRemoved && !hasQuantityChanged && !hasFuzzy;
+  }
+
+  /**
+   * Get exact matches (100% identical, will be auto-skipped)
+   */
+  get exactMatches(): DuplicateMatch[] {
+    return this.state.duplicateMatches.filter(match => this.isExactMatch(match));
+  }
+
+  /**
+   * Get non-exact matches (need user review)
+   */
+  get nonExactMatches(): DuplicateMatch[] {
+    return this.state.duplicateMatches.filter(match => !this.isExactMatch(match));
+  }
+
+  getFilteredDuplicates(): DuplicateMatch[] {
+    // Filter only applies to non-exact matches
+    const matchesToFilter = this.nonExactMatches;
+    
+    if (this.duplicateFilter === 'all') {
+      return matchesToFilter;
+    }
+
+    return matchesToFilter.filter(match => {
+      const diff = match.differences;
+      
+      switch (this.duplicateFilter) {
+        case 'exact':
+          // This shouldn't happen since exact matches are filtered out, but handle it
+          return this.isExactMatch(match);
+        case 'fuzzy':
+          // Has fuzzy matches (variant differences)
+          return (diff.equipmentDiff.fuzzyMatch?.length || 0) > 0 ||
+                 (diff.runePouchDiff?.fuzzyMatch?.length || 0) > 0;
+        case 'quantity':
+          // Has quantity differences
+          return (diff.inventoryDiff.quantityChanged.length +
+                  diff.equipmentDiff.quantityChanged.length +
+                  (diff.runePouchDiff?.quantityChanged.length || 0)) > 0;
+        case 'variants':
+          // Has item variants (negative IDs) or fuzzy matches
+          return (diff.equipmentDiff.fuzzyMatch?.length || 0) > 0 ||
+                 (diff.runePouchDiff?.fuzzyMatch?.length || 0) > 0;
+        default:
+          return true;
+      }
+    });
+  }
+
+  get filteredDuplicateCount(): number {
+    return this.getFilteredDuplicates().length;
   }
 
   nextDuplicate(): void {
-    if (this.state.currentDuplicateIndex < this.state.duplicateMatches.length - 1) {
+    const filtered = this.getFilteredDuplicates();
+    if (this.state.currentDuplicateIndex < filtered.length - 1) {
       this.state.currentDuplicateIndex++;
     }
   }
@@ -433,8 +560,9 @@ export class BulkImportWizardComponent implements OnInit {
   }
 
   canProceedFromDuplicates(): boolean {
-    // All duplicates must have an action selected
-    return this.state.duplicateMatches.every(match => match.action !== undefined);
+    // All non-exact duplicates must have an action selected
+    // Exact matches are auto-set to 'skip', so we only need to check non-exact matches
+    return this.nonExactMatches.every(match => match.action !== undefined);
   }
 
   skipDuplicateDetection(): void {
@@ -451,7 +579,10 @@ export class BulkImportWizardComponent implements OnInit {
 
   get finalSetupCount(): number {
     const selected = this.state.parsedSetups.filter(s => s.selected);
-    const skippedDuplicates = this.state.duplicateMatches.filter(m => m.action === 'skip');
+    // Only count skipped duplicates that are actually in the selected list
+    const skippedDuplicates = this.state.duplicateMatches.filter(
+      m => m.action === 'skip' && selected.includes(m.newSetup)
+    );
     return selected.length - skippedDuplicates.length;
   }
 

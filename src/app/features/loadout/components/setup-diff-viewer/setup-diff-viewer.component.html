@@ -23,15 +23,159 @@
         <div class="equipment-section">
           <h4>Equipment</h4>
           <div class="equipment-grid">
-            <div *ngFor="let item of match.existingSetup.setup.eq; let i = index"
-                 class="item-slot equipment-slot"
-                 [class]="getExistingSlotClass(item, 'equipment')"
-                 [matTooltip]="item ? getItemName(item.id) : 'Empty'"
+            <!-- Head (row 1, col 2) -->
+            <div class="item-slot equipment-slot head" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[0], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[0] ? getItemName(match.existingSetup.setup.eq[0]!.id) : 'Empty'"
                  matTooltipPosition="above">
-              <img *ngIf="item" 
-                   [src]="getItemImageUrl(item.id)" 
-                   [alt]="getItemName(item.id)"
+              <img *ngIf="match.existingSetup.setup.eq[0]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[0]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[0]!.id)"
                    class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[0], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[0], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[0], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[0], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Cape (row 2, col 1) -->
+            <div class="item-slot equipment-slot cape" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[1], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[1] ? getItemName(match.existingSetup.setup.eq[1]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[1]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[1]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[1]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[1], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[1], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[1], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[1], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Amulet (row 2, col 2) -->
+            <div class="item-slot equipment-slot amulet" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[2], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[2] ? getItemName(match.existingSetup.setup.eq[2]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[2]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[2]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[2]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[2], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[2], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[2], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[2], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Ammo (row 2, col 3) -->
+            <div class="item-slot equipment-slot ammo" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[13], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[13] ? getItemName(match.existingSetup.setup.eq[13]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[13]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[13]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[13]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[13], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[13], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[13], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[13], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Weapon (row 3, col 1) -->
+            <div class="item-slot equipment-slot weapon" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[3], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[3] ? getItemName(match.existingSetup.setup.eq[3]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[3]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[3]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[3]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[3], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[3], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[3], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[3], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Body (row 3, col 2) -->
+            <div class="item-slot equipment-slot body" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[4], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[4] ? getItemName(match.existingSetup.setup.eq[4]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[4]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[4]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[4]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[4], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[4], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[4], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[4], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Shield (row 3, col 3) -->
+            <div class="item-slot equipment-slot shield" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[5], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[5] ? getItemName(match.existingSetup.setup.eq[5]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[5]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[5]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[5]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[5], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[5], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[5], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[5], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Legs (row 4, col 2) -->
+            <div class="item-slot equipment-slot legs" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[7], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[7] ? getItemName(match.existingSetup.setup.eq[7]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[7]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[7]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[7]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[7], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[7], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[7], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[7], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Gloves (row 5, col 1) -->
+            <div class="item-slot equipment-slot gloves" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[9], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[9] ? getItemName(match.existingSetup.setup.eq[9]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[9]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[9]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[9]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[9], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[9], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[9], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[9], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Boots (row 5, col 2) -->
+            <div class="item-slot equipment-slot boots" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[10], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[10] ? getItemName(match.existingSetup.setup.eq[10]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[10]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[10]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[10]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[10], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[10], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[10], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[10], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Ring (row 5, col 3) -->
+            <div class="item-slot equipment-slot ring" 
+                 [class]="getExistingSlotClass(match.existingSetup.setup.eq[12], 'equipment')"
+                 [matTooltip]="match.existingSetup.setup.eq[12] ? getItemName(match.existingSetup.setup.eq[12]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.existingSetup.setup.eq[12]" 
+                   [src]="getItemImageUrl(match.existingSetup.setup.eq[12]!.id)" 
+                   [alt]="getItemName(match.existingSetup.setup.eq[12]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.existingSetup.setup.eq[12], 'equipment', true)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.existingSetup.setup.eq[12], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.existingSetup.setup.eq[12], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.existingSetup.setup.eq[12], 'equipment')?.newQty">
+                &ne;
+              </span>
             </div>
           </div>
         </div>
@@ -53,6 +197,15 @@
             </div>
           </div>
         </div>
+
+        <!-- Rune Pouch -->
+        <div class="rune-pouch-section" *ngIf="match.existingSetup.setup.rp?.length || match.newSetup.setup.rp?.length">
+          <h4>Rune Pouch</h4>
+          <app-rune-pouch
+            [runes]="match.existingSetup.setup.rp || []"
+            [comparisonSetup]="match.newSetup.setup">
+          </app-rune-pouch>
+        </div>
       </mat-card-content>
     </mat-card>
 
@@ -70,15 +223,159 @@
         <div class="equipment-section">
           <h4>Equipment</h4>
           <div class="equipment-grid">
-            <div *ngFor="let item of match.newSetup.setup.eq; let i = index"
-                 class="item-slot equipment-slot"
-                 [class]="getNewSlotClass(item, 'equipment')"
-                 [matTooltip]="item ? getItemName(item.id) : 'Empty'"
+            <!-- Head (row 1, col 2) -->
+            <div class="item-slot equipment-slot head" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[0], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[0] ? getItemName(match.newSetup.setup.eq[0]!.id) : 'Empty'"
                  matTooltipPosition="above">
-              <img *ngIf="item" 
-                   [src]="getItemImageUrl(item.id)" 
-                   [alt]="getItemName(item.id)"
+              <img *ngIf="match.newSetup.setup.eq[0]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[0]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[0]!.id)"
                    class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[0], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[0], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[0], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[0], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Cape (row 2, col 1) -->
+            <div class="item-slot equipment-slot cape" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[1], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[1] ? getItemName(match.newSetup.setup.eq[1]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[1]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[1]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[1]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[1], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[1], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[1], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[1], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Amulet (row 2, col 2) -->
+            <div class="item-slot equipment-slot amulet" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[2], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[2] ? getItemName(match.newSetup.setup.eq[2]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[2]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[2]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[2]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[2], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[2], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[2], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[2], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Ammo (row 2, col 3) -->
+            <div class="item-slot equipment-slot ammo" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[13], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[13] ? getItemName(match.newSetup.setup.eq[13]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[13]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[13]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[13]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[13], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[13], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[13], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[13], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Weapon (row 3, col 1) -->
+            <div class="item-slot equipment-slot weapon" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[3], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[3] ? getItemName(match.newSetup.setup.eq[3]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[3]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[3]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[3]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[3], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[3], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[3], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[3], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Body (row 3, col 2) -->
+            <div class="item-slot equipment-slot body" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[4], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[4] ? getItemName(match.newSetup.setup.eq[4]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[4]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[4]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[4]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[4], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[4], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[4], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[4], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Shield (row 3, col 3) -->
+            <div class="item-slot equipment-slot shield" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[5], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[5] ? getItemName(match.newSetup.setup.eq[5]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[5]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[5]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[5]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[5], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[5], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[5], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[5], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Legs (row 4, col 2) -->
+            <div class="item-slot equipment-slot legs" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[7], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[7] ? getItemName(match.newSetup.setup.eq[7]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[7]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[7]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[7]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[7], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[7], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[7], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[7], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Gloves (row 5, col 1) -->
+            <div class="item-slot equipment-slot gloves" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[9], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[9] ? getItemName(match.newSetup.setup.eq[9]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[9]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[9]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[9]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[9], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[9], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[9], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[9], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Boots (row 5, col 2) -->
+            <div class="item-slot equipment-slot boots" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[10], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[10] ? getItemName(match.newSetup.setup.eq[10]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[10]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[10]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[10]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[10], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[10], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[10], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[10], 'equipment')?.newQty">
+                &ne;
+              </span>
+            </div>
+            <!-- Ring (row 5, col 3) -->
+            <div class="item-slot equipment-slot ring" 
+                 [class]="getNewSlotClass(match.newSetup.setup.eq[12], 'equipment')"
+                 [matTooltip]="match.newSetup.setup.eq[12] ? getItemName(match.newSetup.setup.eq[12]!.id) : 'Empty'"
+                 matTooltipPosition="above">
+              <img *ngIf="match.newSetup.setup.eq[12]" 
+                   [src]="getItemImageUrl(match.newSetup.setup.eq[12]!.id)" 
+                   [alt]="getItemName(match.newSetup.setup.eq[12]!.id)"
+                   class="item-image">
+              <span *ngIf="isFuzzyMatch(match.newSetup.setup.eq[12], 'equipment', false)" class="fuzzy-indicator" title="Fuzzy match (different variant)">*</span>
+              <span *ngIf="hasQuantityDifference(match.newSetup.setup.eq[12], 'equipment')" class="quantity-indicator" [title]="'Qty: ' + hasQuantityDifference(match.newSetup.setup.eq[12], 'equipment')?.oldQty + ' → ' + hasQuantityDifference(match.newSetup.setup.eq[12], 'equipment')?.newQty">
+                &ne;
+              </span>
             </div>
           </div>
         </div>
@@ -99,6 +396,15 @@
               <span *ngIf="item && item.q && item.q > 1" class="quantity">{{ item.q }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- Rune Pouch -->
+        <div class="rune-pouch-section" *ngIf="match.existingSetup.setup.rp?.length || match.newSetup.setup.rp?.length">
+          <h4>Rune Pouch</h4>
+          <app-rune-pouch
+            [runes]="match.newSetup.setup.rp || []"
+            [comparisonSetup]="match.existingSetup.setup">
+          </app-rune-pouch>
         </div>
       </mat-card-content>
     </mat-card>
@@ -130,6 +436,14 @@
       <div class="legend-box diff-identical"></div>
       <span>Identical</span>
     </div>
+    <div class="legend-item">
+      <span class="legend-indicator fuzzy-indicator">*</span>
+      <span>Fuzzy Match</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-indicator quantity-indicator">&ne;</span>
+      <span>Qty Diff</span>
+    </div>
   </div>
 
   <!-- Tag Merge Notice -->
@@ -141,7 +455,7 @@
   </div>
 
   <!-- Action Selection -->
-  <div class="action-selection">
+  <div class="action-selection" *ngIf="!hideActionSelection">
     <h4>What would you like to do?</h4>
     <mat-radio-group [(ngModel)]="selectedAction" class="action-radio-group">
       <mat-radio-button value="skip" class="action-option">

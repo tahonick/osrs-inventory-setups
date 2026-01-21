@@ -330,9 +330,17 @@
       <div class="step-content">
         <h3>Handle Duplicate Setups</h3>
         <p class="step-description">
-          We found {{ state.duplicateMatches.length }} setup{{ state.duplicateMatches.length !== 1 ? 's' : '' }} 
-          that {{ state.duplicateMatches.length !== 1 ? 'appear' : 'appears' }} similar to your existing setups.
-          Choose how to handle {{ state.duplicateMatches.length !== 1 ? 'them' : 'it' }}.
+          <span *ngIf="exactMatches.length > 0">
+            {{ exactMatches.length }} exact duplicate{{ exactMatches.length !== 1 ? 's' : '' }} will be automatically skipped.
+            <span *ngIf="nonExactMatches.length > 0">
+              Review {{ nonExactMatches.length }} setup{{ nonExactMatches.length !== 1 ? 's' : '' }} with differences below.
+            </span>
+          </span>
+          <span *ngIf="exactMatches.length === 0">
+            We found {{ state.duplicateMatches.length }} setup{{ state.duplicateMatches.length !== 1 ? 's' : '' }} 
+            that {{ state.duplicateMatches.length !== 1 ? 'appear' : 'appears' }} similar to your existing setups.
+            Choose how to handle {{ state.duplicateMatches.length !== 1 ? 'them' : 'it' }}.
+          </span>
         </p>
 
         <!-- Loading -->
@@ -350,22 +358,101 @@
 
         <!-- Duplicate Viewer -->
         <div *ngIf="!detectingDuplicates && state.duplicateMatches.length > 0">
-          <div class="batch-actions">
-            <span>Apply to all:</span>
-            <button mat-button (click)="applyActionToAll('skip')">Skip All</button>
-            <button mat-button (click)="applyActionToAll('replace')">Replace All</button>
-            <button mat-button (click)="applyActionToAll('keep_both')">Keep All</button>
-          </div>
+          <!-- Exact Matches Accordion (Auto-skipped) -->
+          <mat-expansion-panel *ngIf="exactMatches.length > 0" 
+                               [expanded]="false"
+                               class="exact-matches-accordion">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-icon class="accordion-icon">check_circle</mat-icon>
+                <span class="accordion-title">
+                  Auto-Keep Original ({{ exactMatches.length }} exact duplicate{{ exactMatches.length !== 1 ? 's' : '' }})
+                </span>
+              </mat-panel-title>
+              <mat-panel-description>
+                These setups are 100% identical and will be automatically skipped
+              </mat-panel-description>
+            </mat-expansion-panel-header>
+            
+            <div class="exact-matches-list">
+              <div *ngFor="let match of exactMatches" class="exact-match-item">
+                <div class="exact-match-info">
+                  <strong>{{ match.newSetup.setup.name }}</strong>
+                  <span class="exact-match-details">
+                    Identical to existing: "{{ match.existingSetup.setup.name }}"
+                  </span>
+                </div>
+                <mat-icon class="skip-icon" matTooltip="Will be automatically skipped">skip_next</mat-icon>
+              </div>
+            </div>
+          </mat-expansion-panel>
 
-          <app-setup-diff-viewer
-            *ngIf="currentDuplicateMatch"
-            [match]="currentDuplicateMatch"
-            [currentIndex]="state.currentDuplicateIndex"
-            [totalMatches]="state.duplicateMatches.length"
-            [currentUserId]="currentUserId"
-            (next)="nextDuplicate()"
-            (previous)="previousDuplicate()">
-          </app-setup-diff-viewer>
+          <!-- Non-Exact Matches (Need Review) -->
+          <div *ngIf="nonExactMatches.length > 0" class="non-exact-matches">
+            <!-- Filter -->
+            <div class="duplicate-filter">
+              <!-- Desktop: Button with Menu -->
+              <button mat-button [matMenuTriggerFor]="filterMenu" class="filter-button-desktop">
+                <mat-icon>filter_list</mat-icon>
+                <span>{{ getFilterLabel() }}</span>
+                <mat-icon>arrow_drop_down</mat-icon>
+                <span class="filter-count-badge" *ngIf="duplicateFilter !== 'all'">
+                  {{ filteredDuplicateCount }}/{{ nonExactMatches.length }}
+                </span>
+              </button>
+              <mat-menu #filterMenu="matMenu" class="filter-menu">
+                <button mat-menu-item (click)="duplicateFilter = 'all'; onDuplicateFilterChange()" [class.active]="duplicateFilter === 'all'">
+                  <mat-icon>list</mat-icon>
+                  <span>All Matches ({{ nonExactMatches.length }})</span>
+                </button>
+                <button mat-menu-item (click)="duplicateFilter = 'fuzzy'; onDuplicateFilterChange()" [class.active]="duplicateFilter === 'fuzzy'">
+                  <mat-icon>blur_on</mat-icon>
+                  <span>Fuzzy Matches (Variants)</span>
+                </button>
+                <button mat-menu-item (click)="duplicateFilter = 'quantity'; onDuplicateFilterChange()" [class.active]="duplicateFilter === 'quantity'">
+                  <mat-icon>numbers</mat-icon>
+                  <span>Quantity Differences</span>
+                </button>
+                <button mat-menu-item (click)="duplicateFilter = 'variants'; onDuplicateFilterChange()" [class.active]="duplicateFilter === 'variants'">
+                  <mat-icon>category</mat-icon>
+                  <span>Item Variants</span>
+                </button>
+              </mat-menu>
+              
+              <!-- Mobile/Tablet: Full Form Field -->
+              <div class="filter-mobile">
+                <mat-form-field appearance="outline">
+                  <mat-label>Filter by match type</mat-label>
+                  <mat-select [(ngModel)]="duplicateFilter" (ngModelChange)="onDuplicateFilterChange()">
+                    <mat-option value="all">All Matches ({{ nonExactMatches.length }})</mat-option>
+                    <mat-option value="fuzzy">Fuzzy Matches (Variants)</mat-option>
+                    <mat-option value="quantity">Quantity Differences</mat-option>
+                    <mat-option value="variants">Item Variants</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <span class="filter-count" *ngIf="duplicateFilter !== 'all'">
+                  Showing {{ filteredDuplicateCount }} of {{ nonExactMatches.length }}
+                </span>
+              </div>
+            </div>
+
+            <div class="batch-actions">
+              <span>Apply to all:</span>
+              <button mat-button (click)="applyActionToAll('skip')">Skip All</button>
+              <button mat-button (click)="applyActionToAll('replace')">Replace All</button>
+              <button mat-button (click)="applyActionToAll('keep_both')">Keep All</button>
+            </div>
+
+            <app-setup-diff-viewer
+              *ngIf="currentDuplicateMatch"
+              [match]="currentDuplicateMatch"
+              [currentIndex]="state.currentDuplicateIndex"
+              [totalMatches]="filteredDuplicateCount"
+              [currentUserId]="currentUserId"
+              (next)="nextDuplicate()"
+              (previous)="previousDuplicate()">
+            </app-setup-diff-viewer>
+          </div>
         </div>
 
         <!-- Navigation -->

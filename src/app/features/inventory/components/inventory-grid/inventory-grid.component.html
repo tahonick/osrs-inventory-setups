@@ -15,6 +15,8 @@
            height="32">
       <div class="item-tooltip">{{ getItemName(item.id) }}</div>
       <span class="quantity" *ngIf="item.q">{{ item.q | number }}</span>
+      <span *ngIf="isVariant(item)" class="fuzzy-indicator" title="Item variant">*</span>
+      <span *ngIf="isDifferent(item, index)" class="difference-indicator" title="Different in comparison">!</span>
     </div>
   </div>
 </div> 

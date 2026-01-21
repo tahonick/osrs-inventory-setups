@@ -183,8 +183,41 @@ $base-item-size: clamp(46px, 4vw, 54px);
 
 .item {
   @include item-base;
+  position: relative;
 
   .item-tooltip {
     @include tooltip;
+  }
+
+  .fuzzy-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffc107;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 1), -1px -1px 2px rgba(0, 0, 0, 1);
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 2px;
+    padding: 1px 2px;
+  }
+
+  .quantity-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ff9800;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 1), -1px -1px 2px rgba(0, 0, 0, 1);
+    pointer-events: none;
+    z-index: 10;
+    line-height: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 2px;
+    padding: 1px 3px;
   }
 } 

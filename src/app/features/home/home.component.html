@@ -82,8 +82,116 @@
           </button>
         </mat-form-field>
 
-        <!-- Filter Button -->
-        <button mat-stroked-button (click)="openMobileSearch()" [class.has-filters]="hasActiveFilters()" [class.active]="showMobileSearch" class="filter-button">
+        <!-- Filter Button - Desktop: Menu -->
+        <button mat-stroked-button 
+                #desktopFilterMenuTrigger="matMenuTrigger"
+                [matMenuTriggerFor]="desktopFilterMenu"
+                [class.has-filters]="hasActiveFilters()" 
+                class="filter-button filter-button-desktop">
+          <mat-icon>tune</mat-icon>
+          Filter & Sort
+          <span class="filter-count" *ngIf="hasActiveFilters()">
+            ({{ (selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) }})
+          </span>
+        </button>
+        
+        <!-- Desktop Filter Menu -->
+        <mat-menu #desktopFilterMenu="matMenu" class="desktop-filter-menu" [overlapTrigger]="false">
+          <div class="desktop-filter-content" (click)="$event.stopPropagation()">
+            <!-- Sort Section -->
+            <div class="filter-section">
+              <h3>Sort By</h3>
+              <div class="sort-controls">
+                <mat-form-field appearance="outline" class="sort-field">
+                  <mat-select [formControl]="sortControl">
+                    <mat-option *ngFor="let option of sortOptions" [value]="option.key">
+                      <mat-icon>{{ option.icon }}</mat-icon>
+                      {{ option.label }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <button mat-icon-button
+                        (click)="toggleSortDirection()"
+                        [matTooltip]="sortDirectionControl.value === 'asc' ? 'Sort Ascending' : 'Sort Descending'"
+                        class="sort-direction-button">
+                  <mat-icon>{{ getSortIcon() }}</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- Type Section -->
+            <div class="filter-section">
+              <h3>Type</h3>
+              <mat-form-field appearance="outline">
+                <mat-select [formControl]="selectedType" placeholder="All Types">
+                  <mat-option value="">All Types</mat-option>
+                  <mat-option *ngFor="let type of loadoutTypes" [value]="type.value">
+                    {{ type.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- Categories Section -->
+            <div class="filter-section">
+              <h3>Categories</h3>
+              <mat-chip-set aria-label="Category filters" class="filter-chips">
+                <mat-chip-option *ngFor="let cat of categories" 
+                                 [selected]="(selectedCategories.value ?? []).includes(cat.value)"
+                                 (click)="toggleCategory(cat.value)">
+                  {{ cat.label }}
+                </mat-chip-option>
+              </mat-chip-set>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- Tags Section -->
+            <div class="filter-section" *ngIf="availableTags$ | async as tags">
+              <h3>Tags</h3>
+              <mat-chip-set aria-label="Tag filters" class="filter-chips">
+                <mat-chip-option *ngFor="let tag of getVisibleTags(tags)" 
+                                 [selected]="(selectedTags.value ?? []).includes(tag)"
+                                 (click)="toggleTag(tag)">
+                  {{ tag }}
+                </mat-chip-option>
+              </mat-chip-set>
+              <button mat-button 
+                      class="show-more-button" 
+                      *ngIf="tags.length > 10"
+                      (click)="toggleShowAllTags(); $event.stopPropagation()">
+                {{ showAllTags ? 'Show Less' : 'Show More (' + (tags.length - 10) + ')' }}
+              </button>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- Actions -->
+            <div class="filter-actions">
+              <button mat-stroked-button 
+                      (click)="clearFilters(); $event.stopPropagation()"
+                      [disabled]="!hasActiveFilters()">
+                Clear All
+              </button>
+              <button mat-flat-button 
+                      color="primary"
+                      (click)="closeFilterMenu(); $event.stopPropagation()">
+                Apply
+              </button>
+            </div>
+          </div>
+        </mat-menu>
+        
+        <!-- Filter Button - Mobile: Overlay -->
+        <button mat-stroked-button 
+                (click)="openMobileSearch()"
+                [class.has-filters]="hasActiveFilters()" 
+                [class.active]="showMobileSearch" 
+                class="filter-button filter-button-mobile">
           <mat-icon>{{ showMobileSearch ? 'close' : 'tune' }}</mat-icon>
           Filter & Sort
           <span class="filter-count" *ngIf="hasActiveFilters()">
@@ -194,10 +302,10 @@
     </div>
   </div>
 
-  <!-- Filter Overlay (Works on both mobile and desktop) -->
-  <div class="mobile-search-backdrop" *ngIf="showMobileSearch" (click)="closeMobileSearch()"></div>
+  <!-- Filter Overlay (Mobile/Tablet only) -->
+  <div class="mobile-search-backdrop mobile-only" *ngIf="showMobileSearch" (click)="closeMobileSearch()"></div>
   
-  <div class="mobile-search-overlay" *ngIf="showMobileSearch">
+  <div class="mobile-search-overlay mobile-only" *ngIf="showMobileSearch">
     <div class="search-header">
       <div class="header-left">
         <mat-icon>tune</mat-icon>
