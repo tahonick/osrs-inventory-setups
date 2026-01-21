@@ -199,7 +199,13 @@
   
   <div class="mobile-search-overlay" *ngIf="showMobileSearch">
     <div class="search-header">
-      <h2>Filters & Sort</h2>
+      <div class="header-left">
+        <mat-icon>tune</mat-icon>
+        <h2>FILTER</h2>
+      </div>
+      <button mat-icon-button (click)="closeMobileSearch()" aria-label="Close filters">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
 
     <div class="filter-sections">
