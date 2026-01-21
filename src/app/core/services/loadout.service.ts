@@ -27,7 +27,7 @@ export interface LoadoutFilters {
   search: string;
   categories: Category['type'][];
   tags: string[];
-  sortBy: 'date' | 'likes' | 'views';
+  sortBy: 'date' | 'likes' | 'views' | 'name' | 'category';
   sortDirection: 'asc' | 'desc';
   showPersonalOnly: boolean;
   isPublic?: boolean;
@@ -319,6 +319,14 @@ export class LoadoutService {
               comparison = (b.views || 0) - (a.views || 0);
               break;
             }
+            case 'name': {
+              comparison = (a.setup.name || '').localeCompare(b.setup.name || '');
+              break;
+            }
+            case 'category': {
+              comparison = (a.category || '').localeCompare(b.category || '');
+              break;
+            }
           }
           return filters.sortDirection === 'desc' ? comparison : -comparison;
         });
@@ -397,6 +405,14 @@ export class LoadoutService {
             }
             case 'views': {
               comparison = (b.views || 0) - (a.views || 0);
+              break;
+            }
+            case 'name': {
+              comparison = (a.setup.name || '').localeCompare(b.setup.name || '');
+              break;
+            }
+            case 'category': {
+              comparison = (a.category || '').localeCompare(b.category || '');
               break;
             }
           }
