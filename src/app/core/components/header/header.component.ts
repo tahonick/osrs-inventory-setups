@@ -3,12 +3,15 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterModule } from '@angular/router';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { Router, RouterModule } from '@angular/router';
 import { FirebaseService } from '../../services/firebase.service';
 import { ThemeService } from '../../services/theme.service';
+import { AdminService } from '../../services/admin.service';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs';
 import { User, UserInfo } from 'firebase/auth';
+import { UserProfileComponent } from '../../../shared/components/user-profile/user-profile.component';
 
 interface Stats {
   totalLoadouts: number;
@@ -27,6 +30,7 @@ interface Stats {
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
+    MatDialogModule,
     RouterModule
   ]
 })
@@ -35,11 +39,24 @@ export class HeaderComponent {
   isStatsLoaded$: Observable<boolean>;
   isDarkTheme$: Observable<boolean>;
   currentUser$: Observable<User | null>;
+  isAdmin$: Observable<boolean>;
 
   constructor(
     private firebaseService: FirebaseService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private adminService: AdminService,
+    private dialog: MatDialog,
+    private router: Router
   ) {
+    // Initialize observables
+    this.stats$ = this.firebaseService.stats$;
+    this.isStatsLoaded$ = this.stats$.pipe(
+      map(stats => stats.totalLoadouts > 0 || stats.totalUsers > 0 || stats.totalLikes > 0)
+    );
+    this.isDarkTheme$ = this.themeService.isDarkTheme$;
+    this.currentUser$ = this.firebaseService.currentUser$;
+    this.isAdmin$ = this.adminService.isAdmin();
+    
     // Ensure we always have an anonymous session when signed out
     // But don't auto-sign-in if we're in the middle of a Google sign-in
     this.firebaseService.currentUser$.subscribe(user => {
@@ -58,13 +75,6 @@ export class HeaderComponent {
         }, 2000); // Increased delay to 2 seconds to allow Google sign-in to complete
       }
     });
-
-    this.stats$ = this.firebaseService.stats$;
-    this.isStatsLoaded$ = this.stats$.pipe(
-      map(stats => stats.totalLoadouts > 0 || stats.totalUsers > 0 || stats.totalLikes > 0)
-    );
-    this.isDarkTheme$ = this.themeService.isDarkTheme$;
-    this.currentUser$ = this.firebaseService.currentUser$;
     
     // Debug logging for auth state changes
     this.currentUser$.subscribe(user => {
@@ -85,6 +95,11 @@ export class HeaderComponent {
   async signInWithGoogle(): Promise<void> {
     try {
       await this.firebaseService.signInWithGoogle();
+      
+      // After successful sign-in, wait for the success snackbar to dismiss
+      // Then check if user needs to set OSRS username
+      // Increased delay to 4 seconds to ensure login success message is shown and dismissed
+      setTimeout(() => this.promptForUsernameIfNeeded(), 4000);
     } catch (error: any) {
       // Only log actual errors, not user cancellations
       // Check multiple ways the error code might be represented
@@ -94,6 +109,49 @@ export class HeaderComponent {
         console.error('Error signing in with Google:', error);
       }
       // Otherwise silently ignore user cancellation
+    }
+  }
+
+  private async promptForUsernameIfNeeded(): Promise<void> {
+    const user = this.firebaseService.getCurrentUserSync();
+    if (!user || user.isAnonymous) return;
+
+    // Check if any dialogs are already open
+    if (this.dialog.openDialogs.length > 0) {
+      console.log('Dialog already open, skipping username prompt');
+      return;
+    }
+
+    try {
+      // Check if user has already set their OSRS username
+      const userProfile = await this.firebaseService.getUserProfile(user.uid);
+      
+      // If no OSRS username set, prompt them to add it
+      if (!userProfile?.['osrsUsername']) {
+        const dialogRef = this.dialog.open(UserProfileComponent, {
+          width: '580px',
+          maxWidth: '90vw',
+          disableClose: false, // Allow closing without setting username
+          data: {
+            user: {
+              uid: user.uid,
+              displayName: user.displayName,
+              email: user.email
+            },
+            currentOsrsUsername: '',
+            isFirstTimePrompt: true // Flag to show welcome message
+          }
+        });
+
+        // Optional: Handle the dialog result
+        dialogRef.afterClosed().subscribe(result => {
+          if (result?.success && result?.username) {
+            console.log('User set OSRS username:', result.username);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for OSRS username:', error);
     }
   }
 
@@ -107,5 +165,33 @@ export class HeaderComponent {
 
   toggleTheme(): void {
     this.themeService.toggleTheme();
+  }
+
+  async openUserProfile(): Promise<void> {
+    const user = this.firebaseService.getCurrentUserSync();
+    if (!user || user.isAnonymous) return;
+
+    try {
+      // Get current OSRS username from Firestore
+      const userProfile = await this.firebaseService.getUserProfile(user.uid);
+      
+      this.dialog.open(UserProfileComponent, {
+        width: '600px',
+        data: {
+          user: {
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email
+          },
+          currentOsrsUsername: userProfile?.['osrsUsername'] || ''
+        }
+      });
+    } catch (error) {
+      console.error('Error opening user profile:', error);
+    }
+  }
+
+  navigateToAdmin(): void {
+    this.router.navigate(['/admin']);
   }
 } 

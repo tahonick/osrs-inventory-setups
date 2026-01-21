@@ -389,7 +389,12 @@
 
       <mat-card-footer>
         <div class="stats">
-          <span class="date">{{ loadout.createdAt | firebaseDate }}</span>
+          <div class="left-info">
+            <span class="date">{{ loadout.createdAt | firebaseDate }}</span>
+            <span class="creator" *ngIf="loadout.creatorOsrsUsername || loadout.creatorDisplayName">
+              by {{ loadout.creatorOsrsUsername || loadout.creatorDisplayName }}
+            </span>
+          </div>
           <div class="metrics">
             <span class="views" *ngIf="loadout.views">
               <mat-icon>visibility</mat-icon>

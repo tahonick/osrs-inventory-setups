@@ -32,6 +32,7 @@ export interface LoadoutFilters {
   showPersonalOnly: boolean;
   isPublic?: boolean;
   type?: 'inventory' | 'banktag' | 'banktaglayout';
+  creatorUsername?: string;
 }
 
 export interface PaginationState {
@@ -222,7 +223,17 @@ export class LoadoutService {
           filtered = filtered.filter(loadout => 
             loadout.setup.name.toLowerCase().includes(searchLower) ||
             loadout.setup.notes?.toLowerCase().includes(searchLower) ||
-            loadout.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+            loadout.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
+            loadout.creatorOsrsUsername?.toLowerCase().includes(searchLower) ||
+            loadout.creatorDisplayName?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        if (filters.creatorUsername) {
+          const creatorLower = filters.creatorUsername.toLowerCase();
+          filtered = filtered.filter(loadout =>
+            loadout.creatorOsrsUsername?.toLowerCase().includes(creatorLower) ||
+            loadout.creatorDisplayName?.toLowerCase().includes(creatorLower)
           );
         }
 
@@ -347,7 +358,17 @@ export class LoadoutService {
           filtered = filtered.filter(loadout => 
             loadout.setup.name.toLowerCase().includes(searchLower) ||
             loadout.setup.notes?.toLowerCase().includes(searchLower) ||
-            loadout.tags?.some(tag => tag.toLowerCase().includes(searchLower))
+            loadout.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
+            loadout.creatorOsrsUsername?.toLowerCase().includes(searchLower) ||
+            loadout.creatorDisplayName?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        if (filters.creatorUsername) {
+          const creatorLower = filters.creatorUsername.toLowerCase();
+          filtered = filtered.filter(loadout =>
+            loadout.creatorOsrsUsername?.toLowerCase().includes(creatorLower) ||
+            loadout.creatorDisplayName?.toLowerCase().includes(creatorLower)
           );
         }
 

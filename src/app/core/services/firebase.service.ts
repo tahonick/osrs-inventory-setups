@@ -930,6 +930,11 @@ export class FirebaseService {
       const user = this.currentUser.value;
       if (!user) throw new Error('Must be logged in to create loadout');
 
+      // Get user profile to fetch OSRS username
+      const userRef = doc(this.db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : null;
+
       // Create loadout in a transaction to update all related stats
       let loadoutId: string;
       await runTransaction(db, async (transaction) => {
@@ -944,12 +949,15 @@ export class FirebaseService {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           likes: 0,
-          views: 0
+          views: 0,
+          // Add creator attribution
+          creatorDisplayName: user.displayName || userData?.['displayName'] || 'Anonymous User',
+          creatorOsrsUsername: userData?.['osrsUsername'] || null
         });
 
         // Update user stats
-        const userRef = doc(this.db, 'users', user.uid);
-        transaction.update(userRef, {
+        const userRefTx = doc(this.db, 'users', user.uid);
+        transaction.update(userRefTx, {
           loadoutCount: increment(1),
           lastUpdated: serverTimestamp()
         });
@@ -1066,5 +1074,153 @@ export class FirebaseService {
   isLoadoutOwner(loadout: LoadoutData): boolean {
     const user = this.currentUser.value;
     return user ? loadout.userId === user.uid : false;
+  }
+
+  // ===== OSRS Username Management =====
+
+  /**
+   * Check if an OSRS username is available (not taken by another user)
+   */
+  async checkUsernameAvailability(username: string, currentUserId: string): Promise<boolean> {
+    try {
+      const usersRef = collection(this.db, 'users');
+      const q = query(usersRef, where('osrsUsername', '==', username));
+      const snapshot = await getDocs(q);
+      
+      // Username is available if no results OR the only result is the current user
+      return snapshot.empty || (snapshot.size === 1 && snapshot.docs[0].id === currentUserId);
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update user profile with OSRS username
+   * @param osrsUsername New OSRS username (or empty string to remove)
+   * @param updateExistingLoadouts If true, updates all user's loadouts with new creator info
+   */
+  async updateUserProfile(osrsUsername: string, updateExistingLoadouts: boolean = false): Promise<void> {
+    const user = this.currentUser.value;
+    if (!user) throw new Error('Must be signed in to update profile');
+
+    const trimmedUsername = osrsUsername.trim();
+    
+    // Validate username format (1-12 characters, alphanumeric + spaces/hyphens)
+    if (trimmedUsername && !/^[a-zA-Z0-9 -]{1,12}$/.test(trimmedUsername)) {
+      throw new Error('OSRS username must be 1-12 characters (letters, numbers, spaces, hyphens only)');
+    }
+
+    // Check availability if setting a new username
+    if (trimmedUsername) {
+      const isAvailable = await this.checkUsernameAvailability(trimmedUsername, user.uid);
+      if (!isAvailable) {
+        throw new Error('This OSRS username is already taken');
+      }
+    }
+
+    // Update user document
+    const userRef = doc(this.db, 'users', user.uid);
+    const updateData: any = {
+      lastUpdated: serverTimestamp()
+    };
+
+    if (trimmedUsername) {
+      updateData.osrsUsername = trimmedUsername;
+      updateData.osrsUsernameSetAt = serverTimestamp();
+    } else {
+      // Remove username fields
+      updateData.osrsUsername = null;
+      updateData.osrsUsernameSetAt = null;
+    }
+
+    await updateDoc(userRef, updateData);
+
+    // Optionally update all user's loadouts with new creator info
+    if (updateExistingLoadouts) {
+      await this.updateLoadoutsCreatorInfo(user.uid, user.displayName || '', trimmedUsername);
+    }
+  }
+
+  /**
+   * Batch update all user's loadouts with new creator display info
+   */
+  private async updateLoadoutsCreatorInfo(
+    userId: string, 
+    displayName: string, 
+    osrsUsername: string
+  ): Promise<void> {
+    try {
+      const loadoutsRef = collection(this.db, 'loadouts');
+      const q = query(loadoutsRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return;
+
+      // Batch update in groups of 500 (Firestore batch limit)
+      const batchSize = 500;
+      for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+        const batch = writeBatch(this.db);
+        const batchDocs = snapshot.docs.slice(i, i + batchSize);
+
+        batchDocs.forEach(docSnapshot => {
+          const loadoutRef = doc(this.db, 'loadouts', docSnapshot.id);
+          batch.update(loadoutRef, {
+            creatorDisplayName: displayName,
+            creatorOsrsUsername: osrsUsername || null,
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+      }
+
+      console.log(`Updated creator info for ${snapshot.docs.length} loadouts`);
+    } catch (error) {
+      console.error('Error updating loadouts creator info:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user by OSRS username
+   */
+  async getUserByOsrsUsername(username: string): Promise<{ uid: string; displayName: string } | null> {
+    try {
+      const usersRef = collection(this.db, 'users');
+      const q = query(usersRef, where('osrsUsername', '==', username));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return null;
+
+      const userData = snapshot.docs[0].data();
+      return {
+        uid: snapshot.docs[0].id,
+        displayName: userData['displayName'] || 'Unknown User'
+      };
+    } catch (error) {
+      console.error('Error getting user by username:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user profile data
+   */
+  async getUserProfile(userId: string): Promise<any> {
+    try {
+      const userRef = doc(this.db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) return null;
+      
+      return {
+        id: userSnap.id,
+        ...userSnap.data()
+      };
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
   }
 }
