@@ -879,156 +879,174 @@
   }
 
   // Always keep action bar visible (removed footer hiding logic)
+}
 
-  // Mobile Search Backdrop
-  .mobile-search-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    animation: fadeIn 0.3s ease-out;
+// Mobile Search Backdrop (Root level - not nested)
+.mobile-search-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease-out;
+}
+
+// Mobile Search Overlay (Bottom Sheet) - Root level
+.mobile-search-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  max-height: 70vh;
+  background: var(--mat-app-background-color);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  animation: slideUpFromBottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom;
+  will-change: transform;
+
+  .search-header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--mat-divider-color);
+    background: var(--mat-card-background-color);
+    min-height: 64px;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      mat-icon {
+        color: var(--mat-primary-color);
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--mat-primary-color);
+        letter-spacing: 0.5px;
+      }
+    }
+
+    button {
+      mat-icon {
+        color: var(--mat-primary-color);
+      }
+    }
   }
 
-  // Mobile Search Overlay (Bottom Sheet)
-  .mobile-search-overlay {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    max-height: 60vh;
-    background: var(--mat-app-background-color);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
-    animation: slideUpFromBottom 0.3s ease-out;
+  .filter-sections {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
 
-    .search-header {
-      padding: 8px;
+    .sort-controls {
       display: flex;
       align-items: center;
       gap: 8px;
-      border-bottom: 1px solid var(--mat-divider-color);
-      background: var(--mat-card-background-color);
 
-      .search-field {
+      .sort-field {
         flex: 1;
         margin: 0;
-
-        ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-          display: none;
-        }
-
-        input {
-          font-size: 16px; // Prevent iOS zoom
-        }
       }
 
-      button {
+      .sort-direction-button {
         min-width: 48px;
         min-height: 48px;
+        flex-shrink: 0;
       }
     }
 
-    .filter-sections {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
+    .filter-section {
+      margin-bottom: 24px;
 
-      .sort-controls {
+      h3 {
+        font-size: 14px;
+        font-weight: 500;
+        margin: 0 0 12px;
+        color: var(--mat-primary-color);
+      }
+
+      .filter-chips {
         display: flex;
-        align-items: center;
+        flex-wrap: wrap;
         gap: 8px;
 
-        .sort-field {
-          flex: 1;
-          margin: 0;
-        }
-
-        .sort-direction-button {
-          min-width: 48px;
-          min-height: 48px;
-          flex-shrink: 0;
-        }
-      }
-
-      .filter-section {
-        margin-bottom: 24px;
-
-        h3 {
+        mat-chip-option {
+          height: 36px;
           font-size: 14px;
-          font-weight: 500;
-          margin: 0 0 12px;
-          color: var(--mat-primary-color);
-        }
+          border: 1px solid var(--mat-divider-color);
+          background: var(--mat-card-background-color);
+          opacity: 0.8;
+          transition: all 0.15s ease;
+          cursor: pointer;
 
-        .filter-chips {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
+          &:active {
+            transform: scale(0.95); // Tactile feedback
+          }
 
-          mat-chip-option {
-            height: 36px;
-            font-size: 14px;
-            border: 1px solid var(--mat-divider-color);
-            background: var(--mat-card-background-color);
-            opacity: 0.8;
-            transition: all 0.15s ease;
-            cursor: pointer;
-
-            &:active {
-              transform: scale(0.95); // Tactile feedback
-            }
-
-            &.mdc-evolution-chip--selected {
-              opacity: 1;
-              background: var(--mat-primary-color) !important;
-              color: white !important;
-              border-color: var(--mat-primary-color);
-            }
+          &.mdc-evolution-chip--selected {
+            opacity: 1;
+            background: var(--mat-primary-color) !important;
+            color: white !important;
+            border-color: var(--mat-primary-color);
           }
         }
+      }
 
-        .show-more-button {
-          margin-top: 8px;
-          font-size: 13px;
-          text-transform: none;
-          height: 32px;
-        }
+      .show-more-button {
+        margin-top: 8px;
+        font-size: 13px;
+        text-transform: none;
+        height: 32px;
       }
     }
+  }
 
-    .search-footer {
-      padding: 16px;
-      display: flex;
-      gap: 12px;
-      background: var(--mat-card-background-color);
-      border-top: 1px solid var(--mat-divider-color);
+  .search-footer {
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    background: var(--mat-card-background-color);
+    border-top: 1px solid var(--mat-divider-color);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 
-      button {
-        flex: 1;
-        height: 48px;
-        transition: transform 0.15s ease;
+    button {
+      flex: 1;
+      height: 48px;
+      transition: transform 0.15s ease;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
 
-        &:active {
-          transform: scale(0.97); // Tactile feedback
-        }
+      &:active {
+        transform: scale(0.97); // Tactile feedback
       }
     }
   }
 }
 
 @keyframes slideUpFromBottom {
-  from {
+  0% {
     transform: translateY(100%);
+    opacity: 0;
   }
-  to {
+  100% {
     transform: translateY(0);
+    opacity: 1;
   }
 }
 
