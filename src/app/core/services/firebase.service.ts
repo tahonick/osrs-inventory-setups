@@ -53,7 +53,7 @@ export interface LoadoutQueryOptions {
   categories?: Category['type'][];
   searchTerm?: string;
   tags?: string[];
-  sortBy?: 'date' | 'likes' | 'views';
+  sortBy?: 'date' | 'likes' | 'views' | 'name' | 'category';
   sortDirection?: 'asc' | 'desc';
   pageSize?: number;
   lastVisible?: QueryDocumentSnapshot<DocumentData>;
@@ -402,7 +402,9 @@ export class FirebaseService {
               const dialogRef = this.dialog.open(SignInInfoComponent, {
                 width: '400px',
                 data: {
-                  message: 'Switched to your Google account.',
+                  title: 'Signed In Successfully',
+                  icon: 'check_circle',
+                  message: 'You can now save setups, like (❤️) favorites, and access them from any device.',
                   note: 'Note: Any setups created while anonymous remain on the anonymous account and won\'t be accessible with this Google account.'
                 }
               });
@@ -644,11 +646,17 @@ export class FirebaseService {
       // Handle categories filter
       if (options.categories && options.categories.length > 0) {
         constraints.push(where('category', 'in', options.categories));
+        // When filtering by category, we need to do client-side sorting
+        // to avoid composite index requirements
+        needsClientSideSort = true;
       }
 
       // Handle tags filter
       if (options.tags && options.tags.length > 0) {
         constraints.push(where('tags', 'array-contains-any', options.tags));
+        // When filtering by tags, we need to do client-side sorting
+        // to avoid composite index requirements
+        needsClientSideSort = true;
       }
 
       // Handle public/private filter
@@ -676,9 +684,15 @@ export class FirebaseService {
 
       // Handle sorting
       // Only sort at Firestore level if we're not filtering by userId (which needs client-side sort)
-      if (options.sortBy && !needsClientSideSort) {
+      // and only for fields that are indexed in Firestore (date, likes, views)
+      // name and category will be sorted client-side by LoadoutService
+      const serverSideSortFields = ['date', 'likes', 'views'];
+      if (options.sortBy && !needsClientSideSort && serverSideSortFields.includes(options.sortBy)) {
         constraints.push(orderBy(options.sortBy === 'date' ? 'createdAt' : options.sortBy, 
           options.sortDirection || 'desc'));
+      } else if (options.sortBy && !serverSideSortFields.includes(options.sortBy)) {
+        // For name and category sorting, we need to do client-side sort
+        needsClientSideSort = true;
       }
 
       // Handle pagination
@@ -765,7 +779,7 @@ export class FirebaseService {
         console.log('⚠️ My Setups Query: No loadouts returned from Firestore');
       }
 
-      // If we need client-side sorting (e.g., when filtering by userId), sort here
+      // If we need client-side sorting (e.g., when filtering by userId or sorting by name/category), sort here
       if (needsClientSideSort && options.sortBy) {
         loadouts.sort((a, b) => {
           let comparison = 0;
@@ -784,6 +798,14 @@ export class FirebaseService {
             }
             case 'views': {
               comparison = (b.views || 0) - (a.views || 0);
+              break;
+            }
+            case 'name': {
+              comparison = (a.setup.name || '').localeCompare(b.setup.name || '');
+              break;
+            }
+            case 'category': {
+              comparison = (a.category || '').localeCompare(b.category || '');
               break;
             }
           }

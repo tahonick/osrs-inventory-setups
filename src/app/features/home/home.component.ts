@@ -16,6 +16,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatListModule } from '@angular/material/list';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { FormControl } from '@angular/forms';
 import { Observable, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
@@ -27,6 +28,7 @@ import { LoadoutData, Category } from '../../shared/models/inventory.model';
 import { LoadoutModalComponent } from '../loadout/components/loadout-modal/loadout-modal.component';
 import { LoadoutUploaderDialogComponent } from '../loadout/components/loadout-uploader/loadout-uploader-dialog.component';
 import { BulkImportWizardComponent } from '../loadout/components/bulk-import-wizard/bulk-import-wizard.component';
+import { SignInInfoComponent } from '../../shared/components/sign-in-info/sign-in-info.component';
 import { FirebaseDatePipe } from '../../shared/pipes/firebase-date.pipe';
 import { OsrsApiService } from '../../core/services/osrs-api.service';
 import { EquipmentSlotsComponent } from '../equipment/components/equipment-slots/equipment-slots.component';
@@ -57,6 +59,7 @@ import { BankTagLayout } from '../../shared/models/bank-tag-layout.model';
     MatProgressSpinnerModule,
     MatListModule,
     MatSlideToggleModule,
+    MatSnackBarModule,
     FirebaseDatePipe,
     EquipmentSlotsComponent,
     BankTagLayoutGridComponent
@@ -73,15 +76,15 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   searchControl = new FormControl('');
   selectedCategories = new FormControl<Category['type'][]>([]);
   selectedTags = new FormControl<string[]>([]);
-  sortControl = new FormControl<'date' | 'likes'>('likes');
+  sortControl = new FormControl<'date' | 'likes' | 'name' | 'category'>('date');
   sortDirectionControl = new FormControl<'asc' | 'desc'>('desc');
-  showInstructions = true;
+  showInstructions = !localStorage.getItem('hideInstructions');
   showMobileSearch = false;
+  showAllTags = false;
   @ViewChild('searchInput') searchInput!: ElementRef;
 
   private subscriptions = new Subscription();
   private observer: IntersectionObserver | null = null;
-  isFooterVisible = false;
 
   readonly categories: { value: Category['type']; label: string }[] = [
     { value: 'Combat', label: 'Combat' },
@@ -90,9 +93,11 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     { value: 'Other', label: 'Other' }
   ];
 
-  readonly sortOptions: { key: 'likes' | 'date'; label: string; icon: string }[] = [
+  readonly sortOptions: { key: 'likes' | 'date' | 'name' | 'category'; label: string; icon: string }[] = [
     { key: 'likes', label: 'Likes', icon: 'favorite' },
-    { key: 'date', label: 'Date', icon: 'schedule' }
+    { key: 'date', label: 'Date Added', icon: 'schedule' },
+    { key: 'name', label: 'Name', icon: 'sort_by_alpha' },
+    { key: 'category', label: 'Category', icon: 'category' }
   ];
 
   selectedType = new FormControl<'inventory' | 'banktag' | 'banktaglayout' | ''>('');
@@ -103,12 +108,20 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     { value: 'banktaglayout', label: 'Bank Tag Layouts' }
   ];
 
+  readonly quickFilters: { id: string; label: string; icon: string; category?: Category['type']; type?: 'inventory' | 'banktag' | 'banktaglayout' }[] = [
+    { id: 'combat', label: 'Combat', icon: 'swords', category: 'Combat' },
+    { id: 'skilling', label: 'Skilling', icon: 'trending_up', category: 'Skilling' },
+    { id: 'pvp', label: 'PvP', icon: 'shield', category: 'PvP' },
+    { id: 'banktags', label: 'Bank Tags', icon: 'grid_on', type: 'banktaglayout' }
+  ];
+
   constructor(
     private loadoutService: LoadoutService,
     private dialog: MatDialog,
     private osrsApi: OsrsApiService,
     private firebaseService: FirebaseService,
-    private router: Router
+    private router: Router,
+    private snackBar: MatSnackBar
   ) {
     this.loadouts$ = this.loadoutService.getFilteredLoadouts();
     this.groupedLoadouts$ = this.loadoutService.getGroupedLoadouts();
@@ -177,28 +190,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // Set up intersection observer for footer visibility
-    const footer = document.querySelector('app-footer');
-    if (footer && window.IntersectionObserver) {
-      this.observer = new IntersectionObserver(
-        (entries) => {
-          const isIntersecting = entries[0].isIntersecting;
-          // Add a small buffer before triggering the change
-          if (isIntersecting !== this.isFooterVisible) {
-            this.isFooterVisible = isIntersecting;
-            // Force change detection since we're in an async callback
-            requestAnimationFrame(() => {
-              document.body.classList.toggle('footer-visible', this.isFooterVisible);
-            });
-          }
-        },
-        {
-          threshold: 0,
-          rootMargin: '100px' // Start transition before footer is fully visible
-        }
-      );
-      this.observer.observe(footer);
-    }
+    // Intersection observer removed - action bar now always visible
   }
 
   ngOnDestroy() {
@@ -235,7 +227,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedCategories.setValue([]);
     this.selectedTags.setValue([]);
     this.selectedType.setValue('');
-    this.sortControl.setValue('likes');
+    this.sortControl.setValue('date');
     this.sortDirectionControl.setValue('desc');
     this.showMySetupsOnly.setValue(false);
     this.loadoutService.resetFilters();
@@ -246,14 +238,130 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   openMobileSearch() {
-    this.showMobileSearch = true;
-    setTimeout(() => {
-      this.searchInput?.nativeElement?.focus();
-    }, 300);
+    // Toggle the overlay instead of just opening
+    this.showMobileSearch = !this.showMobileSearch;
+    if (this.showMobileSearch) {
+      setTimeout(() => {
+        this.searchInput?.nativeElement?.focus();
+      }, 300);
+    }
   }
 
   closeMobileSearch() {
     this.showMobileSearch = false;
+  }
+
+  toggleMySetups() {
+    // Check if user is signed in
+    const currentUser = this.firebaseService.getCurrentUserSync();
+    if (!currentUser || currentUser.isAnonymous) {
+      // Show sign-in dialog
+      this.dialog.open(SignInInfoComponent, {
+        width: '400px',
+        data: {
+          title: 'Sign In Required',
+          message: 'You need to sign in with Google to view your setups.',
+          icon: 'lock'
+        }
+      });
+      return;
+    }
+    
+    const newValue = !this.showMySetupsOnly.value;
+    
+    // When turning on "My Setups", clear other filters for a clean view
+    if (newValue) {
+      // Clear all filters at once to avoid multiple queries
+      this.searchControl.setValue('', { emitEvent: false });
+      this.selectedCategories.setValue([], { emitEvent: false });
+      this.selectedTags.setValue([], { emitEvent: false });
+      this.selectedType.setValue('', { emitEvent: false });
+      
+      // Update all filters in a single batch
+      this.loadoutService.updateFilters({
+        search: '',
+        categories: [],
+        tags: [],
+        type: undefined,
+        showPersonalOnly: true
+      });
+    } else {
+      // Just toggle off "My Setups"
+      this.loadoutService.updateFilters({ showPersonalOnly: false });
+    }
+    
+    // Update the form control to reflect the new state (without triggering subscription)
+    this.showMySetupsOnly.setValue(newValue, { emitEvent: false });
+  }
+
+  removeCategory(category: Category['type']) {
+    const current = this.selectedCategories.value ?? [];
+    this.selectedCategories.setValue(current.filter(c => c !== category));
+  }
+
+  toggleCategory(category: Category['type']) {
+    const current = this.selectedCategories.value ?? [];
+    if (current.includes(category)) {
+      this.selectedCategories.setValue(current.filter(c => c !== category));
+    } else {
+      this.selectedCategories.setValue([...current, category]);
+    }
+  }
+
+  removeTag(tag: string) {
+    const current = this.selectedTags.value ?? [];
+    this.selectedTags.setValue(current.filter(t => t !== tag));
+  }
+
+  getTypeLabel(type: 'inventory' | 'banktag' | 'banktaglayout'): string {
+    const typeObj = this.loadoutTypes.find(t => t.value === type);
+    return typeObj ? typeObj.label : type;
+  }
+
+  toggleQuickFilter(filter: typeof this.quickFilters[0]) {
+    if (filter.category) {
+      const current = this.selectedCategories.value ?? [];
+      if (current.includes(filter.category)) {
+        this.selectedCategories.setValue(current.filter(c => c !== filter.category));
+      } else {
+        this.selectedCategories.setValue([...current, filter.category]);
+      }
+    } else if (filter.type) {
+      if (this.selectedType.value === filter.type) {
+        this.selectedType.setValue('');
+      } else {
+        this.selectedType.setValue(filter.type);
+      }
+    }
+  }
+
+  isQuickFilterActive(filter: typeof this.quickFilters[0]): boolean {
+    if (filter.category) {
+      return (this.selectedCategories.value ?? []).includes(filter.category);
+    } else if (filter.type) {
+      return this.selectedType.value === filter.type;
+    }
+    return false;
+  }
+
+  getVisibleTags(allTags: string[]): string[] {
+    if (this.showAllTags || allTags.length <= 10) {
+      return allTags;
+    }
+    return allTags.slice(0, 10);
+  }
+
+  toggleShowAllTags() {
+    this.showAllTags = !this.showAllTags;
+  }
+
+  toggleTag(tag: string) {
+    const current = this.selectedTags.value ?? [];
+    if (current.includes(tag)) {
+      this.selectedTags.setValue(current.filter(t => t !== tag));
+    } else {
+      this.selectedTags.setValue([...current, tag]);
+    }
   }
 
   @HostListener('window:scroll', ['$event'])
@@ -322,7 +430,29 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
 
   hideInstructions(): void {
     this.showInstructions = false;
+  }
+
+  dontShowInstructionsAgain(): void {
+    const currentUser = this.firebaseService.getCurrentUserSync();
+    
+    if (!currentUser || currentUser.isAnonymous) {
+      // Show snackbar for anonymous users
+      this.snackBar.open(
+        '💡 Sign in to hide permanently, or use the ✕ for now',
+        '×',
+        {
+          duration: 4000,
+          horizontalPosition: 'center',
+          verticalPosition: 'top',
+          panelClass: ['info-snackbar']
+        }
+      );
+      return;
+    }
+    
+    // Signed-in users can hide permanently
     localStorage.setItem('hideInstructions', 'true');
+    this.showInstructions = false;
   }
 
   handleFilterKeydown(event: KeyboardEvent): void {

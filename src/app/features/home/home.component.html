@@ -8,63 +8,102 @@
   <!-- How-to Banner -->
   <div class="info-banner" *ngIf="showInstructions">
     <div class="banner-content">
-      <div class="instruction-group">
-        <h3>Bulk Import Your Setups</h3>
-        <div class="instruction-step">
-          <mat-icon>add_circle</mat-icon>
-          <p>Click <strong>Add Layout</strong> → <strong>Import from RuneLite</strong></p>
+      <div class="welcome-section">
+        <h3>Welcome to Inventory Setups</h3>
+        
+        <div class="benefits-group">
+          <h4>Everyone can:</h4>
+          <div class="benefits-list">
+            <div class="benefit-item">
+              <mat-icon>search</mat-icon>
+              <span>Browse community setups</span>
+            </div>
+            <div class="benefit-item">
+              <mat-icon>add_circle</mat-icon>
+              <span>Create and share your own</span>
+            </div>
+            <div class="benefit-item">
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy to RuneLite instantly</span>
+            </div>
+          </div>
         </div>
-        <div class="instruction-step">
-          <mat-icon>upload_file</mat-icon>
-          <p>Upload your RuneLite config file - imports all setups at once</p>
+
+        <div class="benefits-group signin-benefits">
+          <h4><mat-icon>login</mat-icon> Sign in with Google to:</h4>
+          <div class="benefits-list">
+            <div class="benefit-item">
+              <mat-icon>favorite</mat-icon>
+              <span>Like (❤️) setups and find them easily</span>
+            </div>
+            <div class="benefit-item">
+              <mat-icon>filter_list</mat-icon>
+              <span>Quickly filter for "My Setups"</span>
+            </div>
+            <div class="benefit-item">
+              <mat-icon>cloud</mat-icon>
+              <span>Sync across all your devices</span>
+            </div>
+            <div class="benefit-item">
+              <mat-icon>block</mat-icon>
+              <span>Hide this banner permanently</span>
+            </div>
+          </div>
         </div>
-        <div class="instruction-step">
-          <mat-icon>auto_awesome</mat-icon>
-          <p>Auto-tags by category (Combat, Skilling, PvP) and detects duplicates</p>
-        </div>
-      </div>
-      <mat-divider [vertical]="true"></mat-divider>
-      <div class="instruction-group">
-        <h3>Share to RuneLite</h3>
-        <div class="instruction-step">
-          <mat-icon>content_copy</mat-icon>
-          <p>Open any setup and copy it to your clipboard</p>
-        </div>
-        <div class="instruction-step">
-          <mat-icon class="green-icon">save_alt</mat-icon>
-          <p>In RuneLite, click the green import icon and paste</p>
+
+        <div class="footer-info mobile-only">
+          <p class="footer-text">
+            Forked & adapted by <a href="https://github.com/tahonick" target="_blank" rel="noopener noreferrer">Nic Carlson</a> from <a href="https://github.com/patrickrottman" target="_blank" rel="noopener noreferrer">Patrick Rottman</a>
+          </p>
         </div>
       </div>
     </div>
-    <button mat-icon-button class="close-button" (click)="hideInstructions()" matTooltip="Hide Instructions">
-      <mat-icon>close</mat-icon>
-    </button>
+    <div class="banner-actions">
+      <button mat-stroked-button class="dont-show-button" (click)="dontShowInstructionsAgain()" matTooltip="Sign in with Google to hide this permanently">
+        <mat-icon>block</mat-icon>
+        Don't show again
+      </button>
+      <button mat-icon-button class="close-button" (click)="hideInstructions()" matTooltip="Hide for now">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Desktop Controls -->
   <div class="top-bar desktop-only">
     <div class="controls-container">
       <div class="left-controls">
+        <!-- Search Field -->
         <mat-form-field appearance="outline" class="search-field">
-          <input matInput [formControl]="searchControl" placeholder="Search loadouts">
           <mat-icon matPrefix>search</mat-icon>
+          <input matInput [formControl]="searchControl" placeholder="Search setups...">
+          <button mat-icon-button matSuffix *ngIf="searchControl.value" (click)="searchControl.setValue('')">
+            <mat-icon>close</mat-icon>
+          </button>
         </mat-form-field>
 
-        <!-- Combined Filter Button -->
-        <mat-form-field appearance="outline" class="filter-select">
-          <mat-select [matMenuTriggerFor]="filterMenu" placeholder="Filter">
-            <mat-select-trigger>
-              <mat-icon>filter_list</mat-icon>
-              Filter
-              <span class="filter-count" *ngIf="(selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) > 0">
-                ({{ (selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) }})
-              </span>
-            </mat-select-trigger>
-          </mat-select>
-        </mat-form-field>
+        <!-- Filter Button -->
+        <button mat-stroked-button (click)="openMobileSearch()" [class.has-filters]="hasActiveFilters()" [class.active]="showMobileSearch" class="filter-button">
+          <mat-icon>{{ showMobileSearch ? 'close' : 'tune' }}</mat-icon>
+          Filter & Sort
+          <span class="filter-count" *ngIf="hasActiveFilters()">
+            ({{ (selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) }})
+          </span>
+        </button>
 
-        <!-- Filter Menu -->
-        <mat-menu #filterMenu="matMenu" class="filter-menu">
+        <!-- My Setups Toggle -->
+        <button *ngIf="(isLoggedIn$ | async) === true"
+                mat-stroked-button 
+                [class.active]="showMySetupsOnly.value"
+                (click)="toggleMySetups()"
+                class="my-setups-toggle"
+                matTooltip="Show only my setups">
+          <mat-icon>group</mat-icon>
+          <span>My Setups</span>
+        </button>
+
+        <!-- Desktop Filter Menu (hidden, keeping for compatibility) -->
+        <mat-menu #filterMenu="matMenu" class="filter-menu" style="display: none;">
           <div class="filter-menu-content" 
                (click)="$event.stopPropagation()"
                (keydown)="handleFilterKeydown($event)"
@@ -129,47 +168,10 @@
             </div>
           </div>
         </mat-menu>
-
-        <div class="sort-group">
-          <mat-form-field appearance="outline" class="sort-select">
-            <mat-select [formControl]="sortControl" placeholder="Sort">
-              <mat-option *ngFor="let option of sortOptions" [value]="option.key">
-                <mat-icon>{{ option.icon }}</mat-icon>
-                {{ option.label }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <button mat-icon-button
-                  (click)="toggleSortDirection()"
-                  [matTooltip]="sortDirectionControl.value === 'asc' ? 'Sort Ascending' : 'Sort Descending'"
-                  class="sort-direction">
-            <mat-icon>{{ getSortIcon() }}</mat-icon>
-          </button>
-        </div>
-
-        <!-- My Setups Only Toggle -->
-        <button *ngIf="(isLoggedIn$ | async) === true"
-                mat-stroked-button 
-                [class.active]="showMySetupsOnly.value"
-                (click)="showMySetupsOnly.setValue(!showMySetupsOnly.value)"
-                class="my-setups-toggle"
-                matTooltip="Show only my setups">
-          <mat-icon>{{ showMySetupsOnly.value ? 'person' : 'people' }}</mat-icon>
-          <span class="desktop-only">My Setups</span>
-        </button>
-
-        <button *ngIf="hasActiveFilters()" 
-                mat-stroked-button 
-                (click)="clearFilters()" 
-                class="clear-filters">
-          Clear
-        </button>
       </div>
 
       <div class="action-buttons">
-        <button mat-flat-button 
-                color="primary" 
+        <button mat-stroked-button
                 [matMenuTriggerFor]="addMenu"
                 [disabled]="(isLoggedIn$ | async) === false" 
                 class="add-layout-button">
@@ -192,103 +194,121 @@
     </div>
   </div>
 
-  <!-- Mobile Search Interface -->
-  <div class="mobile-search-interface">
-    <!-- Bottom Action Bar -->
-    <div class="mobile-action-bar">
-      <button mat-icon-button (click)="openMobileSearch()" class="search-trigger" [class.has-filters]="hasActiveFilters()">
-        <mat-icon>search</mat-icon>
-        <span class="filter-badge" *ngIf="hasActiveFilters()">
-          {{ (selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) }}
-        </span>
-      </button>
-      <button mat-icon-button [matMenuTriggerFor]="sortMenu">
-        <mat-icon>sort</mat-icon>
-      </button>
-      <button mat-fab color="primary" (click)="openCreateDialog()" [disabled]="(isLoggedIn$ | async) === false">
-        <mat-icon>add</mat-icon>
-      </button>
+  <!-- Filter Overlay (Works on both mobile and desktop) -->
+  <div class="mobile-search-backdrop" *ngIf="showMobileSearch" (click)="closeMobileSearch()"></div>
+  
+  <div class="mobile-search-overlay" *ngIf="showMobileSearch">
+    <div class="search-header">
+      <h2>Filters & Sort</h2>
     </div>
 
-    <!-- Sort Menu -->
-    <mat-menu #sortMenu="matMenu">
-      <button mat-menu-item *ngFor="let option of sortOptions" 
-              (click)="sortControl.setValue(option.key)">
-        <mat-icon>{{ option.icon }}</mat-icon>
-        <span>{{ option.label }}</span>
-        <mat-icon *ngIf="sortControl.value === option.key">check</mat-icon>
-      </button>
-      <mat-divider></mat-divider>
-      <button mat-menu-item (click)="toggleSortDirection()">
-        <mat-icon>{{ getSortIcon() }}</mat-icon>
-        <span>{{ sortDirectionControl.value === 'asc' ? 'Ascending' : 'Descending' }}</span>
-      </button>
-    </mat-menu>
+    <div class="filter-sections">
+      <!-- Sort Section -->
+      <div class="filter-section">
+        <h3>Sort By</h3>
+        <div class="sort-controls">
+          <mat-form-field appearance="outline" class="sort-field">
+            <mat-select [formControl]="sortControl">
+              <mat-option *ngFor="let option of sortOptions" [value]="option.key">
+                <mat-icon>{{ option.icon }}</mat-icon>
+                {{ option.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-icon-button
+                  (click)="toggleSortDirection()"
+                  [matTooltip]="sortDirectionControl.value === 'asc' ? 'Sort Ascending' : 'Sort Descending'"
+                  class="sort-direction-button">
+            <mat-icon>{{ getSortIcon() }}</mat-icon>
+          </button>
+        </div>
+      </div>
 
-    <!-- Mobile Search Overlay -->
-    <div class="mobile-search-overlay" *ngIf="showMobileSearch">
-      <div class="search-header">
+      <!-- Type Section -->
+      <div class="filter-section">
+        <h3>Type</h3>
+        <mat-form-field appearance="outline">
+          <mat-select [formControl]="selectedType" placeholder="All Types">
+            <mat-option value="">All Types</mat-option>
+            <mat-option *ngFor="let type of loadoutTypes" [value]="type.value">
+              {{ type.label }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="filter-section">
+        <h3>Categories</h3>
+        <mat-chip-set aria-label="Category filters" class="filter-chips">
+          <mat-chip-option *ngFor="let cat of categories" 
+                           [selected]="(selectedCategories.value ?? []).includes(cat.value)"
+                           (click)="toggleCategory(cat.value)">
+            {{ cat.label }}
+          </mat-chip-option>
+        </mat-chip-set>
+      </div>
+
+      <div class="filter-section" *ngIf="availableTags$ | async as tags">
+        <h3>Tags</h3>
+        <mat-chip-set aria-label="Tag filters" class="filter-chips">
+          <mat-chip-option *ngFor="let tag of getVisibleTags(tags)" 
+                           [selected]="(selectedTags.value ?? []).includes(tag)"
+                           (click)="toggleTag(tag)">
+            {{ tag }}
+          </mat-chip-option>
+        </mat-chip-set>
+        <button mat-button 
+                class="show-more-button" 
+                *ngIf="tags.length > 10"
+                (click)="toggleShowAllTags(); $event.stopPropagation()">
+          {{ showAllTags ? 'Show Less' : 'Show More (' + (tags.length - 10) + ')' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="search-footer">
+      <button mat-stroked-button (click)="clearFilters()" [disabled]="!hasActiveFilters()">
+        Clear All
+      </button>
+      <button mat-flat-button color="primary" (click)="closeMobileSearch()">
+        Show Results
+      </button>
+    </div>
+  </div>
+  
+  <!-- Mobile Search Interface (Bottom bar - mobile only) -->
+  <div class="mobile-search-interface">
+    <!-- Mobile Bottom Bar with Search and Actions -->
+    <div class="mobile-bottom-container">
+      <!-- Search Bar -->
+      <div class="mobile-search-bar">
         <mat-form-field appearance="outline" class="search-field">
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput [formControl]="searchControl" placeholder="Search loadouts" #searchInput>
+          <input matInput [formControl]="searchControl" placeholder="Search setups...">
           <button mat-icon-button matSuffix *ngIf="searchControl.value" (click)="searchControl.setValue('')">
             <mat-icon>close</mat-icon>
           </button>
         </mat-form-field>
-        <button mat-icon-button (click)="closeMobileSearch()">
-          <mat-icon>close</mat-icon>
+        <button mat-icon-button (click)="openMobileSearch()" [class.has-filters]="hasActiveFilters()">
+          <mat-icon>tune</mat-icon>
+          <span class="filter-badge" *ngIf="hasActiveFilters()">
+            {{ (selectedCategories.value?.length ?? 0) + (selectedTags.value?.length ?? 0) }}
+          </span>
         </button>
       </div>
 
-      <div class="filter-sections">
-        <!-- Type Section -->
-        <div class="filter-section">
-          <h3>Type</h3>
-          <mat-form-field appearance="outline">
-            <mat-select [formControl]="selectedType" placeholder="All Types">
-              <mat-option value="">All Types</mat-option>
-              <mat-option *ngFor="let type of loadoutTypes" [value]="type.value">
-                {{ type.label }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-
-        <div class="filter-section">
-          <h3>Categories</h3>
-          <mat-selection-list [formControl]="selectedCategories" class="filter-list">
-            <mat-list-option *ngFor="let cat of categories" [value]="cat.value">
-              {{ cat.label }}
-            </mat-list-option>
-          </mat-selection-list>
-        </div>
-
-        <div class="filter-section" *ngIf="availableTags$ | async as tags">
-          <h3>Tags</h3>
-          <mat-selection-list [formControl]="selectedTags" class="filter-list">
-            <mat-list-option *ngFor="let tag of tags" [value]="tag">
-              {{ tag }}
-            </mat-list-option>
-          </mat-selection-list>
-        </div>
-
-        <!-- My Setups Only Toggle (Mobile) -->
-        <div class="filter-section" *ngIf="(isLoggedIn$ | async) === true">
-          <h3>Visibility</h3>
-          <div class="toggle-container">
-            <mat-slide-toggle [formControl]="showMySetupsOnly" color="primary">
-              <span>My Setups Only</span>
-            </mat-slide-toggle>
-          </div>
-        </div>
-      </div>
-
-      <div class="search-footer">
-        <button mat-stroked-button (click)="clearFilters()" [disabled]="!hasActiveFilters()">
-          Clear All
+      <!-- Mobile Action Bar -->
+      <div class="mobile-action-bar">
+        <button mat-stroked-button 
+                *ngIf="(isLoggedIn$ | async) === true"
+                (click)="toggleMySetups()" 
+                [class.active]="showMySetupsOnly.value"
+                class="my-setups-button">
+          <mat-icon>{{ showMySetupsOnly.value ? 'person' : 'people' }}</mat-icon>
+          <span>My Setups</span>
         </button>
-        <button mat-flat-button color="primary" (click)="closeMobileSearch()">
-          Show Results
+        <button mat-fab color="primary" (click)="openCreateDialog()" [disabled]="(isLoggedIn$ | async) === false">
+          <mat-icon>add</mat-icon>
         </button>
       </div>
     </div>

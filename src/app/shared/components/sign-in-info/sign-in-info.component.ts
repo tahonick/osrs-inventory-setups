@@ -15,10 +15,10 @@ import { MatIconModule } from '@angular/material/icon';
   ],
   template: `
     <div class="dialog-wrapper">
-      <div class="success-icon">
-        <mat-icon>check_circle</mat-icon>
+      <div class="dialog-icon" [class.success-icon]="data.icon === 'check_circle'" [class.warning-icon]="data.icon === 'lock'">
+        <mat-icon>{{ data.icon || 'check_circle' }}</mat-icon>
       </div>
-      <h2 mat-dialog-title>Signed In Successfully</h2>
+      <h2 mat-dialog-title>{{ data.title || 'Signed In Successfully' }}</h2>
       <mat-dialog-content>
         <p class="message">{{ data.message }}</p>
         <div *ngIf="data.note" class="note-container">
@@ -36,21 +36,33 @@ import { MatIconModule } from '@angular/material/icon';
       padding: 8px 0;
     }
 
-    .success-icon {
+    .dialog-icon {
       display: flex;
       justify-content: center;
+      align-items: center;
       margin-bottom: 1.5rem;
     }
 
-    .success-icon mat-icon {
+    .dialog-icon mat-icon {
       font-size: 64px;
       width: 64px;
       height: 64px;
-      color: #4caf50;
-      background: rgba(76, 175, 80, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border-radius: 50%;
       padding: 12px;
       animation: scaleIn 0.3s ease-out;
+    }
+
+    .success-icon mat-icon {
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+    }
+
+    .warning-icon mat-icon {
+      color: #ff9800;
+      background: rgba(255, 152, 0, 0.1);
     }
 
     @keyframes scaleIn {
@@ -141,8 +153,10 @@ export class SignInInfoComponent {
   constructor(
     public dialogRef: MatDialogRef<SignInInfoComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { 
+      title?: string;
       message: string; 
       note?: string;
+      icon?: string;
     }
   ) {}
 }

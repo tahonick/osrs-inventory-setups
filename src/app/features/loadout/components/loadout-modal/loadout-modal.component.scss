@@ -85,6 +85,13 @@
       --mdc-dialog-container-color: transparent;
       padding: 0;
       overflow: hidden;
+
+      @media (max-width: 768px) {
+        border-radius: 16px 16px 0 0;
+        max-height: 90vh;
+        align-self: flex-end;
+        margin-bottom: 0;
+      }
     }
 
     .mdc-evolution-chip-set {
@@ -135,6 +142,11 @@
     height: 90vh;
   }
 
+  @media (max-width: 768px) {
+    height: 90vh;
+    min-height: auto;
+  }
+
   .header {
     display: flex;
     justify-content: space-between;
@@ -178,6 +190,8 @@
       .info-button {
         opacity: 0.7;
         transition: opacity 0.2s ease;
+        min-width: 48px;
+        min-height: 48px;
 
         &:hover {
           opacity: 1;
@@ -379,12 +393,19 @@
       }
 
       button {
+        min-width: 48px;
+        min-height: 48px;
         width: 48px;
         height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 0;
+        transition: transform 0.15s ease;
+
+        &:active {
+          transform: scale(0.95); // Tactile feedback
+        }
 
         mat-icon {
           font-size: 20px;
@@ -519,6 +540,13 @@
           grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 16px;
           margin-bottom: 16px;
+
+          @media (max-width: 768px) {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
         }
 
         .inventory-container {
@@ -527,6 +555,12 @@
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
+
+          @media (max-width: 768px) {
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+          }
         }
 
         .section {
@@ -534,6 +568,13 @@
           padding: 0.75rem;
           border-radius: 8px;
           box-shadow: var(--mat-dialog-container-elevation);
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+
+          @media (max-width: 768px) {
+            padding: 0.5rem;
+          }
 
           .section-title {
             display: flex;
@@ -585,11 +626,21 @@
               display: flex;
               flex-direction: column;
               gap: 1.25rem;
+              width: 100%;
+              max-width: 100%;
+              overflow: hidden;
 
               .category-row, .tags-row {
                 display: flex;
                 align-items: flex-start;
                 gap: 1rem;
+                width: 100%;
+                max-width: 100%;
+
+                @media (max-width: 768px) {
+                  flex-direction: column;
+                  gap: 0.5rem;
+                }
 
                 label {
                   font-weight: 500;
@@ -597,6 +648,12 @@
                   padding-top: 8px;
                   color: var(--mat-dialog-container-text-color);
                   opacity: 0.7;
+
+                  @media (max-width: 768px) {
+                    min-width: auto;
+                    padding-top: 0;
+                    font-size: 0.9rem;
+                  }
                 }
 
                 .category-field {
@@ -604,6 +661,11 @@
                   
                   ::ng-deep .mat-mdc-text-field-wrapper {
                     background: rgba(0, 0, 0, 0.2);
+                  }
+
+                  @media (max-width: 768px) {
+                    max-width: 100%;
+                    width: 100%;
                   }
                 }
 
@@ -623,14 +685,23 @@
                   display: flex;
                   gap: 1rem;
                   align-items: flex-start;
+                  min-width: 0;
+                  max-width: 100%;
 
                   app-tag-editor {
                     flex: 1;
+                    min-width: 0;
+                    max-width: 100%;
                   }
 
                   .tag-action-btn {
                     text-transform: none;
                     flex-shrink: 0;
+                  }
+
+                  @media (max-width: 768px) {
+                    flex-direction: column;
+                    width: 100%;
                   }
                 }
               }
@@ -652,6 +723,12 @@
                   height: 20px;
                   flex-shrink: 0;
                 }
+
+                @media (max-width: 768px) {
+                  margin-left: 0;
+                  font-size: 0.85rem;
+                  padding: 8px 12px;
+                }
               }
             }
           }
@@ -668,6 +745,27 @@
     justify-content: flex-end;
     gap: 8px;
     z-index: 1;
+
+    button {
+      min-height: 48px;
+      padding: 0 24px;
+      transition: transform 0.15s ease;
+
+      &:active {
+        transform: scale(0.97); // Tactile feedback
+      }
+    }
+
+    @media (max-width: 768px) {
+      position: sticky;
+      bottom: 0;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+      padding: 0.75rem 1rem;
+
+      button {
+        min-height: 44px;
+      }
+    }
   }
 }
 
