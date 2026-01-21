@@ -62,7 +62,7 @@ export interface LoadoutData {
 }
 
 export interface Category {
-  type: 'Combat' | 'Skilling' | 'PvP' | 'Other';
+  type: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other';
   name: string;
 }
 

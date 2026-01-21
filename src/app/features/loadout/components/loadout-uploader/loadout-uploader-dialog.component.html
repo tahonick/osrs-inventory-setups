@@ -56,7 +56,7 @@
               <mat-label>Category</mat-label>
               <mat-select formControlName="category">
                 <mat-option *ngFor="let cat of categories" [value]="cat.value">
-                  <mat-icon>{{ cat.value === 'Combat' ? 'swords' : cat.value === 'Skilling' ? 'trending_up' : cat.value === 'PvP' ? 'shield' : 'category' }}</mat-icon>
+                  <mat-icon>{{ cat.value === 'PVM' ? 'swords' : cat.value === 'Skilling' ? 'trending_up' : cat.value === 'PvP' ? 'shield' : 'category' }}</mat-icon>
                   {{ cat.label }}
                 </mat-option>
               </mat-select>

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,6 +40,10 @@ export class HeaderComponent {
   isDarkTheme$: Observable<boolean>;
   currentUser$: Observable<User | null>;
   isAdmin$: Observable<boolean>;
+  
+  // Mobile header auto-hide
+  lastScrollPosition = 0;
+  isHeaderVisible = true;
 
   constructor(
     private firebaseService: FirebaseService,
@@ -193,5 +197,28 @@ export class HeaderComponent {
 
   navigateToAdmin(): void {
     this.router.navigate(['/admin']);
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    // Only apply on mobile
+    if (window.innerWidth > 768) {
+      this.isHeaderVisible = true;
+      return;
+    }
+    
+    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollDelta = currentScroll - this.lastScrollPosition;
+    
+    // Scrolling down - hide header
+    if (scrollDelta > 5 && currentScroll > 100) {
+      this.isHeaderVisible = false;
+    } 
+    // Scrolling up - show header
+    else if (scrollDelta < -5) {
+      this.isHeaderVisible = true;
+    }
+    
+    this.lastScrollPosition = currentScroll <= 0 ? 0 : currentScroll;
   }
 } 

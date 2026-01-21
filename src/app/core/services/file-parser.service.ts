@@ -8,7 +8,7 @@ export interface ParsedSetup {
   metadata: {
     fileName: string;
     originalFormat: string;
-    suggestedCategory?: 'Combat' | 'Skilling' | 'PvP' | 'Other';
+    suggestedCategory?: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other';
     detectedTags?: string[];
     editing?: boolean; // For inline editing UI state
   };
@@ -364,7 +364,7 @@ export class FileParserService {
    * Fallback keyword-based detection (original logic)
    */
   private detectMetadataFallback(setup: Setup): {
-    suggestedCategory?: 'Combat' | 'Skilling' | 'PvP' | 'Other';
+    suggestedCategory?: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other';
     detectedTags?: string[];
   } {
     const name = setup.name.toLowerCase();
@@ -372,7 +372,7 @@ export class FileParserService {
     const combined = `${name} ${notes}`;
 
     // Detect category (MECE: Mutually Exclusive, Collectively Exhaustive)
-    let suggestedCategory: 'Combat' | 'Skilling' | 'PvP' | 'Other' | undefined;
+    let suggestedCategory: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other' | undefined;
     
     // PvP Keywords (Priority 1 - most specific)
     const pvpKeywords = [
@@ -451,10 +451,10 @@ export class FileParserService {
       suggestedCategory = 'Skilling';
     }
     else if (combatKeywords.some(keyword => combined.includes(keyword))) {
-      suggestedCategory = 'Combat';
+      suggestedCategory = 'PVM';
     }
     else if (otherKeywords.some(keyword => combined.includes(keyword))) {
-      suggestedCategory = 'Other';
+      suggestedCategory = 'Minigames';
     }
     else {
       // Equipment-based fallback
@@ -470,7 +470,7 @@ export class FileParserService {
         );
       });
       
-      suggestedCategory = hasCombatGear ? 'Combat' : 'Other';
+      suggestedCategory = hasCombatGear ? 'PVM' : 'Other';
     }
 
     // Detect tags (simple MECE core tags only)
@@ -517,7 +517,7 @@ export class FileParserService {
    * Synchronous metadata detection using cached database
    */
   private detectMetadata(setup: Setup): {
-    suggestedCategory?: 'Combat' | 'Skilling' | 'PvP' | 'Other';
+    suggestedCategory?: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other';
     detectedTags?: string[];
   } {
     // Try smart detection first (uses cached database)

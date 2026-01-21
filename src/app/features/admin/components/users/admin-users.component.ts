@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AdminService, UserListItem } from '../../../../core/services/admin.service';
@@ -28,6 +29,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     MatMenuModule,
     MatChipsModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     MatDialogModule,
     MatSnackBarModule
   ],
@@ -35,11 +37,17 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
     <div class="admin-users">
       <div class="header">
         <h2>User Management</h2>
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-label>Search users</mat-label>
-          <input matInput [formControl]="searchControl" placeholder="Name, email, or OSRS username">
-          <mat-icon matPrefix>search</mat-icon>
-        </mat-form-field>
+        <div class="header-actions">
+          <mat-form-field appearance="outline" class="search-field">
+            <mat-label>Search users</mat-label>
+            <input matInput [formControl]="searchControl" placeholder="Name, email, or OSRS username">
+            <mat-icon matPrefix>search</mat-icon>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="loadUsers()" [disabled]="loading">
+            <mat-icon>refresh</mat-icon>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div class="loading" *ngIf="loading">
@@ -58,6 +66,19 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                   <div class="name">{{ user.displayName }}</div>
                   <div class="email" *ngIf="user.email">{{ user.email }}</div>
                 </div>
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- User ID Column -->
+          <ng-container matColumnDef="uid">
+            <th mat-header-cell *matHeaderCellDef>User ID</th>
+            <td mat-cell *matCellDef="let user">
+              <div class="uid-cell">
+                <code class="uid-code">{{ user.uid.substring(0, 12) }}...</code>
+                <button mat-icon-button (click)="copyUserId(user.uid)" matTooltip="Copy User ID">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
               </div>
             </td>
           </ng-container>
@@ -102,6 +123,10 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
+                <button mat-menu-item (click)="recalculateUserStats(user)">
+                  <mat-icon>calculate</mat-icon>
+                  <span>Recalculate Stats</span>
+                </button>
                 <button mat-menu-item (click)="viewUserLoadouts(user)">
                   <mat-icon>inventory_2</mat-icon>
                   <span>View Loadouts</span>
@@ -148,8 +173,21 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
           font-weight: 500;
         }
 
-        .search-field {
-          min-width: 300px;
+        .header-actions {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+
+          .search-field {
+            min-width: 300px;
+          }
+
+          button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+          }
         }
       }
     }
@@ -218,6 +256,35 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
           }
         }
 
+        .uid-cell {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+
+          .uid-code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: var(--mat-accent-color);
+          }
+
+          button {
+            opacity: 0.6;
+
+            &:hover {
+              opacity: 1;
+            }
+
+            mat-icon {
+              font-size: 18px;
+              width: 18px;
+              height: 18px;
+            }
+          }
+        }
+
         .not-set {
           opacity: 0.5;
           font-style: italic;
@@ -261,7 +328,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
   `]
 })
 export class AdminUsersComponent implements OnInit {
-  displayedColumns = ['displayName', 'osrsUsername', 'stats', 'lastActive', 'actions'];
+  displayedColumns = ['displayName', 'uid', 'osrsUsername', 'stats', 'lastActive', 'actions'];
   users: UserListItem[] = [];
   filteredUsers: UserListItem[] = [];
   loading = true;
@@ -317,6 +384,21 @@ export class AdminUsersComponent implements OnInit {
     this.snackBar.open(`Edit user: ${user.displayName}`, 'Close', { duration: 2000 });
   }
 
+  async recalculateUserStats(user: UserListItem) {
+    if (!confirm(`Recalculate stats for "${user.displayName}"?\n\nThis will count all their loadouts and update their stats.`)) {
+      return;
+    }
+
+    try {
+      await this.adminService.recalculateUserStats(user.uid);
+      this.snackBar.open(`Stats recalculated for ${user.displayName}. Refreshing...`, 'Close', { duration: 3000 });
+      await this.loadUsers(); // Reload to show updated stats
+    } catch (error) {
+      console.error('Error recalculating stats:', error);
+      this.snackBar.open('Failed to recalculate stats', 'Close', { duration: 3000 });
+    }
+  }
+
   async deleteUser(user: UserListItem) {
     if (!confirm(`Delete user "${user.displayName}" and all their loadouts? This cannot be undone.`)) {
       return;
@@ -330,6 +412,15 @@ export class AdminUsersComponent implements OnInit {
       console.error('Error deleting user:', error);
       this.snackBar.open('Failed to delete user', 'Close', { duration: 3000 });
     }
+  }
+
+  copyUserId(uid: string) {
+    navigator.clipboard.writeText(uid).then(() => {
+      this.snackBar.open('User ID copied to clipboard', 'Close', { duration: 2000 });
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+      this.snackBar.open('Failed to copy User ID', 'Close', { duration: 2000 });
+    });
   }
 
   formatDate(timestamp: any): string {

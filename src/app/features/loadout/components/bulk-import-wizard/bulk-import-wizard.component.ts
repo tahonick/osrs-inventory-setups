@@ -38,7 +38,7 @@ interface WizardState {
   parseErrors: ParseError[];
   duplicateMatches: DuplicateMatch[];
   currentDuplicateIndex: number;
-  category: Category['type']; // 'Combat' | 'Skilling' | 'PvP' | 'Other'
+  category: Category['type']; // 'PVM' | 'Skilling' | 'PvP' | 'Minigames'
   tags: string[];
   isPublic: boolean;
   importing: boolean;
@@ -109,17 +109,18 @@ export class BulkImportWizardComponent implements OnInit {
     parseErrors: [],
     duplicateMatches: [],
     currentDuplicateIndex: 0,
-    category: 'Other',
+    category: 'PVM',
     tags: [],
     isPublic: true, // Default to public
     importing: false
   };
 
   readonly categories: { value: Category['type']; label: string }[] = [
-    { value: 'Combat', label: 'Combat (Bossing, Slayer, Raids)' },
+    { value: 'PVM', label: 'PVM (Bossing, Slayer, Raids)' },
     { value: 'Skilling', label: 'Skilling (Non-combat)' },
     { value: 'PvP', label: 'PvP (Wilderness, PKing)' },
-    { value: 'Other', label: 'Other (Minigames, Quests, Clues)' }
+    { value: 'Minigames', label: 'Minigames (NMZ, Soul Wars, etc.)' },
+    { value: 'Other', label: 'Other (Quests, Clues, etc.)' }
   ];
 
   // Core MECE tags
@@ -554,7 +555,7 @@ export class BulkImportWizardComponent implements OnInit {
       id: '', // Will be set by service
       userId: '', // Will be set by service
       setup: setup.setup,
-      category: setup.metadata.suggestedCategory || 'Other', // Use individual setup's detected category
+      category: setup.metadata.suggestedCategory || 'Minigames', // Use individual setup's detected category
       tags: setup.metadata.detectedTags || [], // Use individual setup's detected tags
       likes: 0,
       views: 0,

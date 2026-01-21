@@ -6,6 +6,7 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  transition: transform 0.3s ease-in-out;
 
   .header-content {
     max-width: 1600px;
@@ -235,6 +236,13 @@
       width: 24px;
       height: 24px;
     }
+  }
+}
+
+// Mobile header auto-hide
+@media (max-width: 768px) {
+  .header-hidden {
+    transform: translateY(-100%);
   }
 }
 

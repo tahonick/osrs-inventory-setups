@@ -1,0 +1,134 @@
+<div class="duplicates-container">
+  <div class="header">
+    <div class="header-left">
+      <h2>Duplicate Loadouts</h2>
+      <div class="selection-info" *ngIf="selectedLoadouts.size > 0">
+        <span>{{ selectedLoadouts.size }} selected</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button mat-raised-button color="warn" 
+              (click)="bulkDelete()" 
+              [disabled]="loading || deleting || selectedLoadouts.size === 0">
+        <mat-icon>delete</mat-icon>
+        Delete Selected ({{ selectedLoadouts.size }})
+      </button>
+      <button mat-button 
+              (click)="clearSelection()" 
+              [disabled]="selectedLoadouts.size === 0">
+        Clear Selection
+      </button>
+      <button mat-raised-button color="primary" (click)="loadDuplicates()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Scanning for duplicates...</p>
+  </div>
+
+  <div *ngIf="!loading && duplicateGroups.length === 0" class="empty-state">
+    <mat-icon>check_circle</mat-icon>
+    <h3>No Duplicates Found</h3>
+    <p>All loadouts appear to be unique!</p>
+  </div>
+
+  <div *ngIf="!loading && duplicateGroups.length > 0" class="stats">
+    <mat-card>
+      <mat-card-content>
+        <div class="stat">
+          <span class="stat-label">Duplicate Groups:</span>
+          <span class="stat-value">{{ getTotalDuplicateGroups() }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total Duplicates:</span>
+          <span class="stat-value">{{ getTotalDuplicates() }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div *ngIf="!loading && duplicateGroups.length > 0" class="duplicate-groups">
+    <mat-card *ngFor="let group of duplicateGroups; let i = index" class="duplicate-group">
+      <mat-card-header>
+        <mat-card-title>
+          <div class="group-header">
+            <span class="group-info">
+              <mat-icon>content_copy</mat-icon>
+              Duplicate Group #{{ i + 1 }}
+              <mat-chip>{{ group.count }} copies</mat-chip>
+              <span class="preview-name">{{ group.loadouts[0].setup?.name || 'Unnamed' }}</span>
+            </span>
+            <div class="group-actions">
+              <button mat-button color="accent" (click)="selectAllInGroup(group)" matTooltip="Select all but first (recommended)">
+                <mat-icon>playlist_add_check</mat-icon>
+                Select Duplicates
+              </button>
+              <button mat-button (click)="deselectAllInGroup(group)" matTooltip="Deselect all in this group">
+                <mat-icon>clear_all</mat-icon>
+                Clear
+              </button>
+              <button mat-icon-button (click)="toggleGroup(group.hash)">
+                <mat-icon>{{ isGroupExpanded(group.hash) ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+        </mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content *ngIf="isGroupExpanded(group.hash)">
+        <div class="loadouts-list">
+          <div *ngFor="let loadout of group.loadouts; let idx = index" class="loadout-item" [class.selected]="isSelected(loadout.id!)">
+            <mat-checkbox 
+              [checked]="isSelected(loadout.id!)"
+              (change)="toggleSelection(loadout.id!)"
+              class="loadout-checkbox">
+            </mat-checkbox>
+            <div class="loadout-info">
+              <div class="loadout-name">{{ loadout.setup?.name || 'Unnamed' }}</div>
+              <div class="loadout-meta">
+                <span class="creator">
+                  <mat-icon>person</mat-icon>
+                  {{ loadout.creatorOsrsUsername || loadout.creatorDisplayName || 'Unknown' }}
+                </span>
+                <span class="category">
+                  <mat-icon>folder</mat-icon>
+                  {{ loadout.category }}
+                </span>
+                <span class="date">
+                  <mat-icon>calendar_today</mat-icon>
+                  {{ loadout.createdAt | firebaseDate }}
+                </span>
+                <span class="visibility">
+                  <mat-icon>{{ loadout.isPublic ? 'public' : 'lock' }}</mat-icon>
+                  {{ loadout.isPublic ? 'Public' : 'Private' }}
+                </span>
+              </div>
+              <div class="loadout-stats">
+                <span matTooltip="Likes">
+                  <mat-icon>favorite</mat-icon>
+                  {{ loadout.likes || 0 }}
+                </span>
+                <span matTooltip="Views">
+                  <mat-icon>visibility</mat-icon>
+                  {{ loadout.views || 0 }}
+                </span>
+              </div>
+            </div>
+            <div class="loadout-actions">
+              <button mat-icon-button (click)="viewLoadout(loadout)" matTooltip="View">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button mat-icon-button color="warn" (click)="deleteLoadout(loadout)" matTooltip="Delete">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

@@ -68,10 +68,11 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
   imageError = false;
 
   readonly categories: { value: Category['type']; label: string }[] = [
-    { value: 'Combat', label: 'Combat (Bossing, Slayer, Raids)' },
+    { value: 'PVM', label: 'PVM (Bossing, Slayer, Raids)' },
     { value: 'Skilling', label: 'Skilling (Non-combat)' },
     { value: 'PvP', label: 'PvP (Wilderness, PKing)' },
-    { value: 'Other', label: 'Other (Minigames, Quests, Clues)' }
+    { value: 'Minigames', label: 'Minigames (NMZ, Soul Wars, etc.)' },
+    { value: 'Other', label: 'Other (Quests, Clues, etc.)' }
   ];
 
   readonly availableTags: string[] = [
@@ -105,7 +106,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
   ) {
     this.jsonForm = this.fb.group({
       json: ['', Validators.required],
-      category: ['Combat', Validators.required],
+      category: ['PVM', Validators.required],
       tags: [[]]
     });
 
@@ -207,7 +208,7 @@ export class LoadoutUploaderDialogComponent implements OnInit, OnDestroy {
         const bankTagLayout = this.bankTagLayoutService.parseExport(cleanText);
         
         // Preserve existing category and tags if we're reparsing
-        const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Other';
+        const category = this.loadoutPreview?.category || this.jsonForm.get('category')?.value || 'Minigames';
         const tags = this.loadoutPreview?.tags || this.jsonForm.get('tags')?.value || [];
         
         this.loadoutPreview = {

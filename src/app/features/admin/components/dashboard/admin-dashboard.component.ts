@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
@@ -12,13 +13,20 @@ import { AdminService, AdminStats } from '../../../../core/services/admin.servic
   imports: [
     CommonModule,
     MatCardModule,
+    MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatDividerModule
   ],
   template: `
     <div class="admin-dashboard">
-      <h2>Dashboard Overview</h2>
+      <div class="dashboard-header">
+        <h2>Dashboard Overview</h2>
+        <button mat-raised-button color="primary" (click)="loadDashboardData()" [disabled]="loading">
+          <mat-icon>refresh</mat-icon>
+          Refresh Stats
+        </button>
+      </div>
 
       <div class="loading" *ngIf="loading">
         <mat-spinner diameter="40"></mat-spinner>
@@ -137,10 +145,23 @@ import { AdminService, AdminStats } from '../../../../core/services/admin.servic
       max-width: 1600px;
       margin: 0 auto;
 
-      h2 {
-        margin: 0 0 2rem 0;
-        font-size: 2rem;
-        font-weight: 500;
+      .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+
+        h2 {
+          margin: 0;
+          font-size: 2rem;
+          font-weight: 500;
+        }
+
+        button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
       }
     }
 

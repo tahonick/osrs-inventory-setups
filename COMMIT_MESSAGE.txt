@@ -1,0 +1,46 @@
+Add user-editable loadout names, duplicates detection, and migration stats updates
+
+## Features
+
+### User Loadout Management
+- Users can now rename their own loadouts inline (pencil icon in modal)
+- Clean edit/cancel interface with Material icons
+- Real-time updates with optimistic UI feedback
+
+### Admin Capabilities
+- Admins can edit/delete ANY loadout (overrides ownership)
+- New "Duplicates" tab in Admin Portal with intelligent detection
+- Bulk selection and deletion of duplicate loadouts
+- Visual diff comparison for duplicate groups
+- "Select Duplicates" button (keeps first, selects rest)
+
+### Migration & Stats Improvements
+- Automatic stats recalculation after all migrations
+- User ID column with copy button in User Management
+- "Recalculate Stats" option in user menu
+- Detailed console logging for debugging migrations
+- Stats now update correctly for both source and destination users
+
+### Mobile UI Enhancements
+- Auto-hide header on scroll down, auto-show on scroll up
+- Admin Portal and Stats hidden on mobile devices
+- Incremental search loading (100 results + 400 background)
+- Default sort by name for predictable ordering
+- Improved search bar that doesn't make setups disappear
+
+### Bug Fixes
+- Fixed search functionality clearing all results
+- Fixed property access errors (setup.name vs loadout.name)
+- Fixed null safety in duplicate hash calculations
+- Fixed DatePipe injection in duplicates component
+- Added proper admin checks to firebase.service.ts
+
+## Technical Details
+- Enhanced `admin.service.ts` with duplicate detection and stats recalculation
+- Updated `firebase.service.ts` with `updateLoadoutName()` method
+- Added `AdminDuplicatesComponent` with bulk actions
+- Modified `loadout-modal.component` for inline editing
+- Firestore rules already included admin overrides
+- Automatic stats updates using `recalculateUserStats()`
+
+Closes #[issue-number if applicable]

@@ -8,6 +8,7 @@ import { AdminDashboardComponent } from './components/dashboard/admin-dashboard.
 import { AdminUsersComponent } from './components/users/admin-users.component';
 import { AdminLoadoutsComponent } from './components/loadouts/admin-loadouts.component';
 import { AdminMigrationsComponent } from './components/migrations/admin-migrations.component';
+import { AdminDuplicatesComponent } from './components/duplicates/admin-duplicates.component';
 
 @Component({
   selector: 'app-admin',
@@ -20,7 +21,8 @@ import { AdminMigrationsComponent } from './components/migrations/admin-migratio
     AdminDashboardComponent,
     AdminUsersComponent,
     AdminLoadoutsComponent,
-    AdminMigrationsComponent
+    AdminMigrationsComponent,
+    AdminDuplicatesComponent
   ],
   template: `
     <div class="admin-container">
@@ -68,6 +70,14 @@ import { AdminMigrationsComponent } from './components/migrations/admin-migratio
             Migrations
           </ng-template>
           <app-admin-migrations></app-admin-migrations>
+        </mat-tab>
+
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>content_copy</mat-icon>
+            Duplicates
+          </ng-template>
+          <app-admin-duplicates></app-admin-duplicates>
         </mat-tab>
       </mat-tab-group>
     </div>

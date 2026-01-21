@@ -179,6 +179,45 @@ import { AdminService, UserListItem } from '../../../../core/services/admin.serv
           </div>
         </mat-card-content>
       </mat-card>
+
+      <mat-divider></mat-divider>
+
+      <!-- Category Migration -->
+      <mat-card class="section-card">
+        <mat-card-header>
+          <mat-icon>category</mat-icon>
+          <h3>Category Migration</h3>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Update all loadouts from old category name to new:</p>
+          <ul>
+            <li><strong>Combat</strong> → <strong>PVM</strong></li>
+          </ul>
+          <p class="note">Note: "Other" category remains unchanged. New categories: PVM, Skilling, PvP, Minigames, Other</p>
+
+          <button 
+            mat-raised-button 
+            color="primary" 
+            (click)="migrateCategoryNames()"
+            [disabled]="migratingCategories">
+            <mat-spinner diameter="20" *ngIf="migratingCategories"></mat-spinner>
+            <mat-icon *ngIf="!migratingCategories">category</mat-icon>
+            <span *ngIf="!migratingCategories">Migrate Category Names</span>
+          </button>
+
+          <mat-progress-bar 
+            *ngIf="migratingCategories" 
+            mode="indeterminate">
+          </mat-progress-bar>
+
+          <div class="migration-result" *ngIf="categoryMigrationResult">
+            <mat-icon [class.success]="categoryMigrationResult.updated > 0" [class.error]="categoryMigrationResult.errors > 0">
+              {{ categoryMigrationResult.errors === 0 ? 'check_circle' : 'warning' }}
+            </mat-icon>
+            <p>Updated {{ categoryMigrationResult.updated }} loadouts{{ categoryMigrationResult.errors > 0 ? ' (' + categoryMigrationResult.errors + ' errors)' : '' }}</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
@@ -341,6 +380,9 @@ export class AdminMigrationsComponent implements OnInit {
   newOwnerControl = new FormControl('');
   reassigning = false;
 
+  migratingCategories = false;
+  categoryMigrationResult: { updated: number; errors: number } | null = null;
+
   constructor(
     private adminService: AdminService,
     private snackBar: MatSnackBar
@@ -404,10 +446,10 @@ export class AdminMigrationsComponent implements OnInit {
       
       this.migrationResult = {
         success: true,
-        message: `Successfully migrated ${migratedCount} loadouts from ${fromUserId} to ${toUserId}`
+        message: `Successfully migrated ${migratedCount} loadouts and recalculated user stats. Check console for details.`
       };
 
-      this.snackBar.open(`Migrated ${migratedCount} loadouts successfully`, 'Close', { duration: 5000 });
+      this.snackBar.open(`Migrated ${migratedCount} loadouts and updated stats. Go to Dashboard to see updated stats.`, 'Close', { duration: 7000 });
       
       // Clear form
       this.fromUserControl.reset();
@@ -444,7 +486,7 @@ export class AdminMigrationsComponent implements OnInit {
 
     try {
       await this.adminService.reassignLoadout(loadoutId, newOwner);
-      this.snackBar.open('Loadout reassigned successfully', 'Close', { duration: 3000 });
+      this.snackBar.open('Loadout reassigned and stats updated. Check console for details.', 'Close', { duration: 5000 });
       
       // Clear form
       this.loadoutIdControl.reset();
@@ -461,5 +503,38 @@ export class AdminMigrationsComponent implements OnInit {
     if (!timestamp) return 'Unknown';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString();
+  }
+
+  async migrateCategoryNames() {
+    if (!confirm('This will update all Combat loadouts to PVM category. Continue?')) {
+      return;
+    }
+
+    this.migratingCategories = true;
+    this.categoryMigrationResult = null;
+
+    try {
+      const result = await this.adminService.migrateCategoryNames();
+      this.categoryMigrationResult = result;
+
+      if (result.errors === 0) {
+        this.snackBar.open(
+          `Successfully updated ${result.updated} loadouts. Check console for details.`,
+          'Close',
+          { duration: 5000 }
+        );
+      } else {
+        this.snackBar.open(
+          `Updated ${result.updated} loadouts with ${result.errors} errors. Check console.`,
+          'Close',
+          { duration: 7000 }
+        );
+      }
+    } catch (error: any) {
+      console.error('Error during category migration:', error);
+      this.snackBar.open('Category migration failed', 'Close', { duration: 3000 });
+    } finally {
+      this.migratingCategories = false;
+    }
   }
 }

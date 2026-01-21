@@ -10,7 +10,9 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatOptionModule } from '@angular/material/core';
+import { FormsModule } from '@angular/forms';
 import { LoadoutData, Setup } from '../../../../shared/models/inventory.model';
 import { InventoryGridComponent } from '../../../inventory/components/inventory-grid/inventory-grid.component';
 import { EquipmentSlotsComponent } from '../../../equipment/components/equipment-slots/equipment-slots.component';
@@ -50,7 +52,9 @@ interface SpellbookMap {
     MatChipsModule,
     MatSelectModule,
     MatFormFieldModule,
+    MatInputModule,
     MatOptionModule,
+    FormsModule,
     InventoryGridComponent,
     EquipmentSlotsComponent,
     RunePouchComponent,
@@ -72,6 +76,8 @@ export class LoadoutModalComponent {
   isLoggedIn$: Observable<boolean>;
   hasLiked = false;
   isPublic = true;
+  isEditingName = false;
+  editedName = '';
 
   constructor(
     public dialogRef: MatDialogRef<LoadoutModalComponent>,
@@ -167,6 +173,66 @@ export class LoadoutModalComponent {
   getSpellbookName(spellbookId: number): string {
     const spellbook = this.SPELLBOOKS[spellbookId] || this.SPELLBOOKS[0];
     return `${spellbook.name} Spellbook`;
+  }
+
+  startEditingName(): void {
+    this.isEditingName = true;
+    this.editedName = this.data.setup.name;
+    // Focus the input after a short delay
+    setTimeout(() => {
+      const input = document.querySelector('.name-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 100);
+  }
+
+  cancelEditingName(): void {
+    this.isEditingName = false;
+    this.editedName = '';
+  }
+
+  async saveName(): Promise<void> {
+    const newName = this.editedName.trim();
+    
+    if (!newName) {
+      this.snackBar.open('Name cannot be empty', 'Close', {
+        duration: 3000,
+        panelClass: ['error-snackbar']
+      });
+      return;
+    }
+
+    if (newName === this.data.setup.name) {
+      this.cancelEditingName();
+      return;
+    }
+
+    try {
+      if (!this.data.id) {
+        throw new Error('Loadout ID is missing');
+      }
+
+      await this.firebaseService.updateLoadoutName(this.data.id, newName);
+      
+      // Update local data
+      this.data.setup.name = newName;
+      
+      this.snackBar.open('Name updated successfully', 'Close', {
+        duration: 3000,
+        panelClass: ['success-snackbar']
+      });
+      
+      this.isEditingName = false;
+      this.editedName = '';
+    } catch (error) {
+      console.error('Error updating name:', error);
+      this.snackBar.open('Failed to update name', 'Close', {
+        duration: 3000,
+        panelClass: ['error-snackbar']
+      });
+    }
   }
 
   async deleteLoadout(): Promise<void> {
@@ -322,7 +388,7 @@ export class LoadoutModalComponent {
   /**
    * Handle category changed
    */
-  async onCategoryChanged(newCategory: 'Combat' | 'Skilling' | 'PvP' | 'Other'): Promise<void> {
+  async onCategoryChanged(newCategory: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other'): Promise<void> {
     const oldCategory = this.data.category;
     this.data.category = newCategory;
     

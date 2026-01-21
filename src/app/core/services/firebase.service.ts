@@ -1063,14 +1063,18 @@ export class FirebaseService {
     }
   }
 
-  async deleteLoadout(id: string): Promise<void> {
+  // Admin user check - matches admin.service.ts
+  private isAdminUser(uid: string): boolean {
+    const ADMIN_USER_IDS = ['zVBENBUCoocuLjF7oGaomqgzzjo2'];
+    return ADMIN_USER_IDS.includes(uid);
+  }
+
+  async updateLoadoutName(id: string, newName: string): Promise<void> {
     try {
       const user = this.currentUser.value;
-      if (!user) throw new Error('Must be logged in to delete loadout');
+      if (!user) throw new Error('Must be logged in to update loadout');
 
       const db = this.getFirestore();
-
-      // First verify ownership
       const loadoutRef = doc(this.db, 'loadouts', id);
       const loadoutSnap = await getDoc(loadoutRef);
       
@@ -1079,7 +1083,47 @@ export class FirebaseService {
       }
 
       const loadoutData = loadoutSnap.data();
-      if (loadoutData['userId'] !== user.uid) {
+      const isAdmin = this.isAdminUser(user.uid);
+      
+      // Check ownership or admin status
+      if (loadoutData['userId'] !== user.uid && !isAdmin) {
+        throw new Error('You do not have permission to update this loadout');
+      }
+
+      // Update the name
+      await updateDoc(loadoutRef, {
+        name: newName.trim(),
+        updatedAt: serverTimestamp()
+      });
+
+      // Refresh loadouts after update
+      await this.refreshLoadouts();
+    } catch (error) {
+      console.error('Error updating loadout name:', error);
+      throw error;
+    }
+  }
+
+  async deleteLoadout(id: string): Promise<void> {
+    try {
+      const user = this.currentUser.value;
+      if (!user) throw new Error('Must be logged in to delete loadout');
+
+      const db = this.getFirestore();
+
+      // First verify ownership or admin status
+      const loadoutRef = doc(this.db, 'loadouts', id);
+      const loadoutSnap = await getDoc(loadoutRef);
+      
+      if (!loadoutSnap.exists()) {
+        throw new Error('Loadout not found');
+      }
+
+      const loadoutData = loadoutSnap.data();
+      const isAdmin = this.isAdminUser(user.uid);
+      
+      // Check ownership or admin status
+      if (loadoutData['userId'] !== user.uid && !isAdmin) {
         throw new Error('You do not have permission to delete this loadout');
       }
 
