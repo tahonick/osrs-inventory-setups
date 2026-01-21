@@ -15,7 +15,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (
-        // Allow owner to update their loadout
+        // Allow owner to update their loadout (any fields)
         request.auth.uid == resource.data.userId ||
         // Allow any authenticated user to update likes count
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||

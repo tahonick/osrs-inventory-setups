@@ -125,6 +125,45 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 This fork includes significant improvements to authentication, privacy, user experience, and code quality. All enhancements maintain backward compatibility with the original project.
 
+### 📱 Mobile-First UI Overhaul (January 2025)
+
+**Unified Filter & Sort Experience**
+- Complete redesign of filtering interface with a single overlay for both mobile and desktop
+- Bottom-anchored mobile search bar with filter button for quick access
+- Toggle-based Filter & Sort button that opens/closes the overlay without explicit close button
+- All interactive elements optimized for mobile touch (48x48px minimum)
+- Responsive KPI stats in header that adapt gracefully to all screen sizes
+
+**Enhanced Authentication Flow**
+- Clear "Sign in" / "Sign out" buttons with improved anonymous-to-Google account linking
+- Dynamic sign-in info dialogs explaining features available after signing in
+- Built-in migration tool for handling orphaned loadouts between accounts (admin use)
+- Improved anonymous user experience with clear messaging about feature availability
+
+**Filtering & Sorting Improvements**
+- Hybrid client-side/server-side sorting approach to avoid Firestore composite index requirements
+- Batch filter updates prevent race conditions from multiple simultaneous queries
+- Default sort by creation date (descending) - newest loadouts appear first
+- Smart "My Setups" toggle that automatically clears other filters for clean view
+
+**Performance & Data Management**
+- Firestore query optimization reducing unnecessary composite indexes
+- Granular security rules allowing owners full control while restricting others to likes-only
+- HTML-based migration tool for bulk userId migrations when accounts become orphaned
+
+**UX Enhancements**
+- Dismissible instructions banner with option to hide permanently (requires sign-in)
+- Persistent user preferences via localStorage (instruction visibility, theme, etc.)
+- Clear branding as "Inventory Setups Viewer" with subtitle clarifying it's a community tool
+- Mobile footer content accessible within dismissible welcome banner
+- Modern glassmorphism snackbar notifications with backdrop blur and gradients
+
+**Bug Fixes**
+- Fixed category filter race conditions that caused duplicate queries
+- Resolved Firestore index errors for category + sorting combinations
+- Corrected filter count badge to accurately display number of active filters
+- Fixed desktop filter button to properly open/close overlay on all screen sizes
+
 ### 🔐 Authentication System
 
 **Complete Google Sign-in Integration**

@@ -55,7 +55,7 @@ export interface LoadoutQueryOptions {
   categories?: Category['type'][];
   searchTerm?: string;
   tags?: string[];
-  sortBy?: 'date' | 'likes' | 'views';
+  sortBy?: 'date' | 'likes' | 'views' | 'name' | 'category';
   sortDirection?: 'asc' | 'desc';
   pageSize?: number;
   lastVisible?: QueryDocumentSnapshot<DocumentData>;
@@ -533,13 +533,75 @@ export class FirebaseService {
 
       if (usePopup) {
         // POPUP FLOW (localhost + desktop)
-        // Simple, clean, one-popup experience
         
-        const wasAnonymous = currentUser?.isAnonymous || false;
-        
-        // Always do a clean sign-in (no linking complexity)
-        result = await signInWithPopup(this.auth, provider);
-        user = result.user;
+        // If user is currently anonymous, try to link the Google account to preserve data
+        if (currentUser && currentUser.isAnonymous) {
+          console.log('Attempting to link anonymous account with Google...');
+          try {
+            result = await linkWithPopup(currentUser, provider);
+            user = result.user;
+            console.log('Anonymous account successfully linked with Google');
+          } catch (linkError: any) {
+            // If linking fails, handle different error cases
+            if (linkError?.code === 'auth/credential-already-in-use') {
+              // The Google account is already linked to another account
+              // We can't link them. We need to sign out anonymous first, then sign in with Google
+              console.warn('Google account already in use with another account. Signing out anonymous and signing in with Google.');
+              
+              // Sign out anonymous user - this is still in the same user action context
+              // The flag prevents automatic re-authentication
+              await firebaseSignOut(this.auth);
+              
+              // Small delay to ensure sign-out completes
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Now sign in with Google - still in user action context, so popup won't be blocked
+              result = await signInWithPopup(this.auth, provider);
+              user = result.user;
+              console.log('Signed in with Google after signing out anonymous account');
+              
+              // Show info dialog after a short delay to ensure sign-in completes
+              // Keep the flag set until dialog closes to prevent anonymous re-auth
+              setTimeout(() => {
+                const dialogRef = this.dialog.open(SignInInfoComponent, {
+                  width: '400px',
+                  data: {
+                    title: 'Signed In Successfully',
+                    icon: 'check_circle',
+                    message: 'You can now save setups, like (❤️) favorites, and access them from any device.',
+                    note: 'Note: Any setups created while anonymous remain on the anonymous account and won\'t be accessible with this Google account.'
+                  }
+                });
+                
+                // Reset flag only after dialog closes
+                dialogRef.afterClosed().subscribe(() => {
+                  // Small delay before resetting flag to ensure auth state is stable
+                  setTimeout(() => {
+                    this.isSigningInWithGoogle = false;
+                  }, 500);
+                });
+              }, 500);
+            } else if (linkError?.code === 'auth/popup-blocked') {
+              // Popup was blocked - re-throw to be handled by outer catch
+              throw linkError;
+            } else if (linkError?.code === 'auth/popup-closed-by-user') {
+              // User closed popup - silently return
+              this.isSigningInWithGoogle = false; // Reset flag
+              return;
+            } else {
+              // Other linking errors - try regular sign in as fallback
+              console.warn('Failed to link anonymous account, attempting regular sign in:', linkError);
+              // Don't sign out - just try to sign in, which will switch accounts
+              result = await signInWithPopup(this.auth, provider);
+              user = result.user;
+              console.log('Signed in with Google (anonymous account not linked)');
+            }
+          }
+        } else {
+          // Regular sign in (not anonymous)
+          result = await signInWithPopup(this.auth, provider);
+          user = result.user;
+        }
         
         // Create or update user document
         await this.createOrUpdateUserDocument(user);
@@ -549,19 +611,6 @@ export class FirebaseService {
         
         // Refresh loadouts
         await this.refreshLoadouts();
-        
-        // If they were anonymous, show a helpful message
-        if (wasAnonymous) {
-          setTimeout(() => {
-            this.dialog.open(SignInInfoComponent, {
-              width: '400px',
-              data: {
-                message: 'Signed in successfully!',
-                note: 'Note: Setups created while anonymous remain on the anonymous account. You can recreate them if needed.'
-              }
-            });
-          }, 500);
-        }
         
       } else {
         // REDIRECT FLOW (mobile)
@@ -716,11 +765,17 @@ export class FirebaseService {
       // Handle categories filter
       if (options.categories && options.categories.length > 0) {
         constraints.push(where('category', 'in', options.categories));
+        // When filtering by category, we need to do client-side sorting
+        // to avoid composite index requirements
+        needsClientSideSort = true;
       }
 
       // Handle tags filter
       if (options.tags && options.tags.length > 0) {
         constraints.push(where('tags', 'array-contains-any', options.tags));
+        // When filtering by tags, we need to do client-side sorting
+        // to avoid composite index requirements
+        needsClientSideSort = true;
       }
 
       // Handle public/private filter
@@ -748,9 +803,15 @@ export class FirebaseService {
 
       // Handle sorting
       // Only sort at Firestore level if we're not filtering by userId (which needs client-side sort)
-      if (options.sortBy && !needsClientSideSort) {
+      // and only for fields that are indexed in Firestore (date, likes, views)
+      // name and category will be sorted client-side by LoadoutService
+      const serverSideSortFields = ['date', 'likes', 'views'];
+      if (options.sortBy && !needsClientSideSort && serverSideSortFields.includes(options.sortBy)) {
         constraints.push(orderBy(options.sortBy === 'date' ? 'createdAt' : options.sortBy, 
           options.sortDirection || 'desc'));
+      } else if (options.sortBy && !serverSideSortFields.includes(options.sortBy)) {
+        // For name and category sorting, we need to do client-side sort
+        needsClientSideSort = true;
       }
 
       // Handle pagination
@@ -837,7 +898,7 @@ export class FirebaseService {
         console.log('⚠️ My Setups Query: No loadouts returned from Firestore');
       }
 
-      // If we need client-side sorting (e.g., when filtering by userId), sort here
+      // If we need client-side sorting (e.g., when filtering by userId or sorting by name/category), sort here
       if (needsClientSideSort && options.sortBy) {
         loadouts.sort((a, b) => {
           let comparison = 0;
@@ -856,6 +917,14 @@ export class FirebaseService {
             }
             case 'views': {
               comparison = (b.views || 0) - (a.views || 0);
+              break;
+            }
+            case 'name': {
+              comparison = (a.setup.name || '').localeCompare(b.setup.name || '');
+              break;
+            }
+            case 'category': {
+              comparison = (a.category || '').localeCompare(b.category || '');
               break;
             }
           }

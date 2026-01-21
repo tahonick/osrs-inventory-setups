@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Loadout Migration Tool</title>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, collection, getDocs, doc, updateDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Your Firebase config (same as in environment.ts)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD4wwv2RkhpjaRfesqLWR4pe7eW84n3lVQ",
+      authDomain: "osrs-setups-nc.firebaseapp.com",
+      projectId: "osrs-setups",
+      storageBucket: "osrs-setups.firebasestorage.app",
+      messagingSenderId: "629115383666",
+      appId: "1:629115383666:web:1219823e2b1b50912df7eb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Wait for auth to be ready
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        document.getElementById('status').innerHTML = `
+          <h2>Logged in as: ${user.email}</h2>
+          <p>Current userId: <strong>${user.uid}</strong></p>
+          <button onclick="window.signOutUser()" style="background: red; color: white; padding: 10px; cursor: pointer; margin-top: 10px;">
+            Sign Out
+          </button>
+        `;
+        
+        // Analyze loadouts
+        await analyzeLoadouts(user.uid);
+      } else {
+        document.getElementById('status').innerHTML = `
+          <p>Not logged in.</p>
+          <button onclick="window.signInWithGoogle()" style="background: #4285f4; color: white; padding: 10px; cursor: pointer; font-size: 16px;">
+            🔐 Sign in with Google
+          </button>
+        `;
+      }
+    });
+
+    // Sign in function
+    window.signInWithGoogle = async function() {
+      const { GoogleAuthProvider, signInWithPopup } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        alert('Sign-in failed: ' + error.message);
+      }
+    };
+
+    // Sign out function
+    window.signOutUser = async function() {
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      try {
+        await signOut(auth);
+      } catch (error) {
+        alert('Sign-out failed: ' + error.message);
+      }
+    };
+
+    async function analyzeLoadouts(currentUserId) {
+      const analysisDiv = document.getElementById('analysis');
+      analysisDiv.innerHTML = '<p>Analyzing loadouts...</p>';
+
+      try {
+        const loadoutsRef = collection(db, 'loadouts');
+        const snapshot = await getDocs(loadoutsRef);
+        
+        const userIdMap = new Map();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const userId = data.userId;
+          if (!userIdMap.has(userId)) {
+            userIdMap.set(userId, []);
+          }
+          userIdMap.get(userId).push({
+            id: doc.id,
+            name: data.setup?.name || 'Unnamed',
+            isPublic: data.isPublic,
+            createdAt: data.createdAt
+          });
+        });
+
+        let html = `<h3>Found ${userIdMap.size} different user ID(s):</h3>`;
+        
+        userIdMap.forEach((loadouts, userId) => {
+          const isCurrent = userId === currentUserId;
+          html += `
+            <div style="border: 2px solid ${isCurrent ? 'green' : 'orange'}; padding: 10px; margin: 10px 0;">
+              <h4>${isCurrent ? '✅ CURRENT USER' : '⚠️ OLD/OTHER USER'}</h4>
+              <p>UserId: <code>${userId}</code></p>
+              <p>Loadouts: <strong>${loadouts.length}</strong></p>
+              <details>
+                <summary>View all ${loadouts.length} loadouts</summary>
+                <ul>
+                  ${loadouts.map(l => `<li>${l.name} (${l.isPublic ? 'Public' : 'Private'})</li>`).join('')}
+                </ul>
+              </details>
+              ${!isCurrent ? `
+                <button onclick="window.migrateLoadouts('${userId}', '${currentUserId}')" style="background: orange; color: white; padding: 10px; margin-top: 10px; cursor: pointer;">
+                  Migrate these ${loadouts.length} loadouts to current user
+                </button>
+              ` : ''}
+            </div>
+          `;
+        });
+
+        analysisDiv.innerHTML = html;
+      } catch (error) {
+        analysisDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    }
+
+    window.migrateLoadouts = async function(fromUserId, toUserId) {
+      if (!confirm(`Are you sure you want to migrate all loadouts from\n${fromUserId}\nto\n${toUserId}?`)) {
+        return;
+      }
+
+      const statusDiv = document.getElementById('migration-status');
+      statusDiv.innerHTML = '<p>Migrating...</p>';
+
+      try {
+        const loadoutsRef = collection(db, 'loadouts');
+        const q = query(loadoutsRef, where('userId', '==', fromUserId));
+        const snapshot = await getDocs(q);
+
+        let migrated = 0;
+        for (const docSnapshot of snapshot.docs) {
+          await updateDoc(doc(db, 'loadouts', docSnapshot.id), {
+            userId: toUserId
+          });
+          migrated++;
+          statusDiv.innerHTML = `<p>Migrated ${migrated} / ${snapshot.size}...</p>`;
+        }
+
+        statusDiv.innerHTML = `<p style="color: green;">✅ Successfully migrated ${migrated} loadouts!</p>`;
+        
+        // Refresh analysis
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+      } catch (error) {
+        statusDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>OSRS Inventory Setups - Loadout Migration Tool</h1>
+  <div id="status">Loading...</div>
+  <div id="analysis"></div>
+  <div id="migration-status"></div>
+</body>
+</html>
