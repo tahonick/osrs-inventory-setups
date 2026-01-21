@@ -913,7 +913,7 @@ export class LoadoutService {
       const currentLoadouts = this.loadoutStateService.getCurrentLoadouts();
       const updatedLoadouts = currentLoadouts.map(loadout => {
         if (loadout.id === loadoutId) {
-          return { ...loadout, category: category as 'Combat' | 'Skilling' | 'PvP' | 'Other' };
+          return { ...loadout, category: category as 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other' };
         }
         return loadout;
       });

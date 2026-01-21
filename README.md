@@ -19,7 +19,6 @@ This project aims to make sharing OSRS gear setups as seamless as possible. Inst
   - Personal loadouts view
 
 - **User Features**
-  - Google authentication
   - Like and save favorite setups
   - Public/private loadout options
   - Dark/light theme support
@@ -125,7 +124,76 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 This fork includes significant improvements to authentication, privacy, user experience, and code quality. All enhancements maintain backward compatibility with the original project.
 
-### 📱 Mobile-First UI Overhaul (January 2025)
+### 👤 OSRS Username Integration (January 2026)
+
+**Player Identity System**
+- Set your OSRS username in your profile (visible to all users when viewing your loadouts)
+- Search for setups by creator's OSRS username
+- First-time login prompt for new users to set their username
+- Profile dialog with privacy controls and clear explanation of public visibility
+- Username displayed alongside loadouts in search results and detail views
+- Automatic username prompt timing to avoid conflicts with Google sign-in popups
+
+**Profile Management**
+- Edit profile dialog accessible from header menu
+- Change OSRS username or display name anytime
+- Privacy notice explaining that username is public when set
+- Sign-out option in profile dialog
+- Responsive design optimized for mobile and desktop
+
+**Loadout Name Editing**
+- Users can rename their own loadouts inline (pencil icon in modal)
+- Clean edit/cancel interface with Material icons
+- Real-time updates with optimistic UI feedback
+- Admins can edit ANY loadout names (overrides ownership)
+
+### 🛡️ Admin Portal & Moderation (January 2026)
+
+**Comprehensive Admin Dashboard** (Admin-only feature)
+- **Dashboard Tab**: Real-time statistics
+  - Total users (Google vs Anonymous breakdown)
+  - Total loadouts (Public vs Private)
+  - Engagement metrics (likes, views)
+  - Top creators leaderboard
+  - Today's new users and loadouts
+  - Refresh button for real-time updates
+  
+- **User Management Tab**:
+  - View all users with search/filter
+  - User ID display with copy button for easy migration
+  - User stats (loadout count, total likes, total views)
+  - Recalculate individual user stats
+  - Delete users and their loadouts
+  - Last active tracking
+  
+- **Loadouts Tab**:
+  - Browse all loadouts with moderation controls
+  - Admin can edit/delete any loadout (overrides ownership)
+  - Visibility controls (make public/private)
+  - Bulk moderation actions
+  
+- **Migrations Tab**:
+  - Migrate all loadouts from one user to another
+  - Automatic stats recalculation after migrations
+  - Single loadout reassignment
+  - Orphaned account detection and cleanup
+  - Detailed console logging for debugging
+  
+- **Duplicates Tab**:
+  - Automatic duplicate detection based on inventory/equipment content
+  - Grouped view of duplicate loadouts
+  - Bulk selection with "Select Duplicates" button (keeps first, selects rest)
+  - Bulk delete functionality
+  - Expandable groups with detailed comparison
+  - Visual feedback for selected items
+
+**Admin Features**
+- Admin user IDs configured in `admin.service.ts`
+- Firestore security rules enforce admin permissions
+- Admin Portal hidden on mobile devices
+- Automatic visibility in header when logged in as admin
+
+### 📱 Mobile-First UI Overhaul (January 2026)
 
 **Unified Filter & Sort Experience**
 - Complete redesign of filtering interface with a single overlay for both mobile and desktop
@@ -133,6 +201,21 @@ This fork includes significant improvements to authentication, privacy, user exp
 - Toggle-based Filter & Sort button that opens/closes the overlay without explicit close button
 - All interactive elements optimized for mobile touch (48x48px minimum)
 - Responsive KPI stats in header that adapt gracefully to all screen sizes
+- Default sort by name (ascending) for predictable loadout ordering
+- Incremental search loading (100 results immediately, 400 more in background)
+
+**Mobile Header Behavior**
+- Auto-hide header on scroll down for more screen space
+- Auto-show header on scroll up for easy navigation access
+- Smooth slide animations with transform transitions
+- Debounced scroll detection for performance
+- Works seamlessly with filter overlay interactions
+
+**Enhanced Search & Filtering**
+- Fixed search bar bug that made all setups disappear while typing
+- Incremental search loading: 100 results immediately, 400 more in background
+- Improved performance for large result sets with client-side filtering
+- Search by setup name, description, or creator username
 
 **Enhanced Authentication Flow**
 - Clear "Sign in" / "Sign out" buttons with improved anonymous-to-Google account linking
@@ -218,11 +301,12 @@ This fork includes significant improvements to authentication, privacy, user exp
      - Fuzzy name matching for partial matches
   3. **Generic Keywords** (Fallback): Broad category keywords for low-confidence classification
 
-- **MECE Categorization** (Mutually Exclusive, Collectively Exhaustive):
-  - **Combat**: Bosses, Slayer, Raids, PvM
-  - **Skilling**: All 23 skills plus minigames like Wintertodt, Tempoross
+- **Category System**:
+  - **PVM**: Bosses (including Barrows), Slayer, Raids, Combat
+  - **Skilling**: All 23 skills plus skilling-focused activities
   - **PvP**: Player vs Player activities
-  - **Other**: Minigames (NMZ, Barrows, etc.), Quests, Clue scrolls
+  - **Minigames**: NMZ, Soul Wars, Gauntlet, etc.
+  - **Other**: Quests, Clue scrolls, miscellaneous activities
 
 - **Auto-Tag Detection**:
   - **Activity Tags**: Bossing, Slayer, Wilderness, Minigames, Skilling, Questing
@@ -305,19 +389,22 @@ This fork includes significant improvements to authentication, privacy, user exp
 ### 📝 Technical Details
 
 **Key Files Modified**
-- `src/app/core/services/firebase.service.ts` - Complete auth overhaul, account linking, query optimization
-- `src/app/core/services/loadout.service.ts` - Privacy filtering, grouped loadouts, client-side processing, tag merging
+- `src/app/core/services/firebase.service.ts` - Complete auth overhaul, account linking, loadout renaming, admin checks
+- `src/app/core/services/admin.service.ts` - **NEW**: Admin operations, stats, migrations, duplicates detection
+- `src/app/core/services/loadout.service.ts` - Privacy filtering, grouped loadouts, incremental search loading
 - `src/app/core/services/file-parser.service.ts` - Multi-format parser (.properties + .json), escape sequence handling
 - `src/app/core/services/duplicate-detection.service.ts` - Fuzzy matching algorithm, diff calculation
-- `src/app/core/services/osrs-entity-database.service.ts` - **NEW**: OSRSBox integration, smart classification
-- `src/app/core/components/header/` - Auth UI, user info display
-- `src/app/features/home/home.component.*` - Grouped loadouts UI, "My Setups" filter, MECE category filters
-- `src/app/features/loadout/components/loadout-modal/` - Privacy toggle, MECE categories
+- `src/app/core/services/osrs-entity-database.service.ts` - OSRSBox integration, smart classification
+- `src/app/core/components/header/` - Auth UI, user info display, OSRS username prompt, auto-hide on scroll
+- `src/app/features/admin/` - **NEW**: Complete admin portal with dashboard, users, loadouts, migrations, duplicates
+- `src/app/features/home/home.component.*` - Grouped loadouts UI, "My Setups" filter, username search
+- `src/app/features/loadout/components/loadout-modal/` - Privacy toggle, inline name editing, OSRS username display
 - `src/app/features/loadout/components/loadout-uploader/` - JSON validation improvements
-- `src/app/features/loadout/components/bulk-import-wizard/` - **NEW**: Multi-step wizard, inline editing, search
-- `src/app/features/loadout/components/setup-diff-viewer/` - **NEW**: Visual diff comparison, ownership checks
-- `src/app/shared/components/sign-in-info/` - New sign-in success dialog component
-- `src/app/shared/models/bank-tag-layout.model.ts` - MECE category types
+- `src/app/features/loadout/components/bulk-import-wizard/` - Multi-step wizard, inline editing, search
+- `src/app/features/loadout/components/setup-diff-viewer/` - Visual diff comparison, ownership checks
+- `src/app/shared/components/sign-in-info/` - Sign-in success dialog, username prompt component
+- `src/app/shared/models/inventory.model.ts` - Added UserProfile with OSRS username fields
+- `firestore.rules` - Enhanced security with admin overrides and username field protection
 
 **Bulk Import Methodology**
 1. **File Upload & Parsing**:
@@ -384,7 +471,7 @@ This fork includes significant improvements to authentication, privacy, user exp
 
 **Category Management**
 - **Owner-only editing**: Category dropdown visible for setup owners (logged in)
-- **MECE Categories**: Combat, Skilling, PvP, Other
+- **Categories**: PVM, Skilling, PvP, Minigames, Other
 - **Default handling**: Existing setups without categories default to "Other" on first view
 - **Visual feedback**: Toast notifications for successful updates or errors
 - **Readonly display**: Non-owners see category badge (no dropdown)

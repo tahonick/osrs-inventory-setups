@@ -28,7 +28,7 @@ export interface OSRSMonster {
 }
 
 export interface EntityClassification {
-  category: 'Combat' | 'Skilling' | 'PvP' | 'Other';
+  category: 'PVM' | 'Skilling' | 'PvP' | 'Minigames' | 'Other';
   tags: string[];
   confidence: 'high' | 'medium' | 'low';
   matchedEntity?: string;
@@ -269,13 +269,13 @@ export class OsrsEntityDatabaseService {
       return skillingMatch;
     }
 
-    // Priority 4: Check for Combat (Bosses, Slayer, etc.)
+    // Priority 4: Check for PVM (Bosses, Slayer, etc.)
     const combatMatch = this.matchCombatSync(combined);
     if (combatMatch) {
       return combatMatch;
     }
 
-    // Priority 5: Other (Quests, etc.)
+    // Priority 5: Minigames (Quests, etc.)
     const otherMatch = this.matchOther(combined);
     if (otherMatch) {
       return otherMatch;
@@ -297,7 +297,7 @@ export class OsrsEntityDatabaseService {
       if (text.includes(activity)) {
         const tags = ['Minigames', ...this.getUtilityTags(text)];
         return {
-          category: 'Other',
+          category: 'Minigames',
           tags: tags.filter(Boolean),
           confidence: 'high',
           matchedEntity: activity
@@ -340,7 +340,7 @@ export class OsrsEntityDatabaseService {
       if (text.includes('toa') || text.includes('tombs')) tags.push('ToA');
       
       return {
-        category: 'Combat',
+        category: 'PVM',
         tags: tags.concat(this.getWildernessTag(text), this.getUtilityTags(text)),
         confidence: 'high'
       };
@@ -379,7 +379,7 @@ export class OsrsEntityDatabaseService {
         tags.push(...this.getUtilityTags(text));
         
         return {
-          category: 'Combat',
+          category: 'PVM',
           tags: tags.filter(Boolean),
           confidence: 'high',
           matchedEntity: matchedMonster.name
@@ -402,7 +402,7 @@ export class OsrsEntityDatabaseService {
         tags.push(...this.getUtilityTags(text));
         
         return {
-          category: 'Combat',
+          category: 'PVM',
           tags: tags.filter(Boolean),
           confidence: 'high',
           matchedEntity: monster
@@ -425,7 +425,7 @@ export class OsrsEntityDatabaseService {
         tags.push(...this.getUtilityTags(text));
         
         return {
-          category: 'Combat',
+          category: 'PVM',
           tags: tags.filter(Boolean),
           confidence: 'high',
           matchedEntity: boss
@@ -436,7 +436,7 @@ export class OsrsEntityDatabaseService {
     // Priority 5: General slayer keywords
     if (this.containsAny(text, ['slayer', 'task', 'assignment'])) {
       return {
-        category: 'Combat',
+        category: 'PVM',
         tags: ['Slayer', ...this.getUtilityTags(text)],
         confidence: 'medium'
       };
@@ -445,7 +445,7 @@ export class OsrsEntityDatabaseService {
     // Priority 6: General PvM/Combat keywords (NMZ removed - it's a minigame!)
     if (this.containsAny(text, ['pvm', 'crabs', 'sand crab', 'ammonite'])) {
       return {
-        category: 'Combat',
+        category: 'PVM',
         tags: this.getUtilityTags(text),
         confidence: 'medium'
       };
@@ -454,7 +454,7 @@ export class OsrsEntityDatabaseService {
     // Priority 7: Generic combat style setups (mage, melee, range)
     if (this.containsAny(text, ['mage', 'magic', 'melee', 'range', 'ranged', 'combat'])) {
       return {
-        category: 'Combat',
+        category: 'PVM',
         tags: this.getUtilityTags(text),
         confidence: 'low'
       };
@@ -497,7 +497,7 @@ export class OsrsEntityDatabaseService {
     // Check for quests
     if (this.containsAny(text, ['quest', 'recipe for disaster', 'dt2', 'song of the elves'])) {
       return {
-        category: 'Other',
+        category: 'Minigames',
         tags: ['Questing'],
         confidence: 'high'
       };
@@ -506,7 +506,7 @@ export class OsrsEntityDatabaseService {
     // Check for clues
     if (text.includes('clue')) {
       return {
-        category: 'Other',
+        category: 'Minigames',
         tags: [],
         confidence: 'medium'
       };

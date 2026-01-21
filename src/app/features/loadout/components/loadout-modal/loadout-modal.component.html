@@ -2,7 +2,28 @@
   <div class="header">
     <h2 mat-dialog-title>
       <mat-icon>inventory_2</mat-icon>
-      <span>{{ data.setup.name }}</span>
+      <span *ngIf="!isEditingName">{{ data.setup.name }}</span>
+      <div *ngIf="isEditingName" class="name-editor">
+        <input 
+          class="name-input" 
+          [(ngModel)]="editedName" 
+          (keydown.enter)="saveName()"
+          (keydown.escape)="cancelEditingName()"
+          maxlength="50">
+        <button mat-icon-button (click)="saveName()" matTooltip="Save">
+          <mat-icon>check</mat-icon>
+        </button>
+        <button mat-icon-button (click)="cancelEditingName()" matTooltip="Cancel">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <button *ngIf="isOwner && !isEditingName" 
+              mat-icon-button 
+              (click)="startEditingName()" 
+              matTooltip="Rename"
+              class="edit-name-btn">
+        <mat-icon>edit</mat-icon>
+      </button>
     </h2>
     <!-- Desktop Actions -->
     <div class="header-actions desktop-actions">

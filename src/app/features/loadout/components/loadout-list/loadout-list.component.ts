@@ -63,9 +63,10 @@ export class LoadoutListComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   
   readonly categories: { type: Category['type']; name: string; }[] = [
-    { type: 'Combat', name: 'Combat' },
+    { type: 'PVM', name: 'PVM' },
     { type: 'Skilling', name: 'Skilling' },
     { type: 'PvP', name: 'PvP' },
+    { type: 'Minigames', name: 'Minigames' },
     { type: 'Other', name: 'Other' }
   ];
 

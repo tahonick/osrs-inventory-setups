@@ -87,9 +87,10 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   private observer: IntersectionObserver | null = null;
 
   readonly categories: { value: Category['type']; label: string }[] = [
-    { value: 'Combat', label: 'Combat' },
+    { value: 'PVM', label: 'PVM' },
     { value: 'Skilling', label: 'Skilling' },
     { value: 'PvP', label: 'PvP' },
+    { value: 'Minigames', label: 'Minigames' },
     { value: 'Other', label: 'Other' }
   ];
 
@@ -109,7 +110,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   ];
 
   readonly quickFilters: { id: string; label: string; icon: string; category?: Category['type']; type?: 'inventory' | 'banktag' | 'banktaglayout' }[] = [
-    { id: 'combat', label: 'Combat', icon: 'swords', category: 'Combat' },
+    { id: 'pvm', label: 'PVM', icon: 'swords', category: 'PVM' },
     { id: 'skilling', label: 'Skilling', icon: 'trending_up', category: 'Skilling' },
     { id: 'pvp', label: 'PvP', icon: 'shield', category: 'PvP' },
     { id: 'banktags', label: 'Bank Tags', icon: 'grid_on', type: 'banktaglayout' }
