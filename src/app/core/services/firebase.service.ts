@@ -531,73 +531,77 @@ export class FirebaseService {
       let result;
       let user: User;
 
-      // If user is currently anonymous, try to link the Google account to preserve data
-      if (currentUser && currentUser.isAnonymous) {
-        console.log('Attempting to link anonymous account with Google...');
-        try {
-          result = await linkWithPopup(currentUser, provider, browserPopupRedirectResolver);
-          user = result.user;
-          console.log('Anonymous account successfully linked with Google');
-        } catch (linkError: any) {
-          // If linking fails, handle different error cases
-          if (linkError?.code === 'auth/credential-already-in-use') {
-            // The Google account is already linked to another account
-            // We can't link them. We need to sign out anonymous first, then sign in with Google
-            console.warn('Google account already in use with another account. Signing out anonymous and signing in with Google.');
-            
-            // Sign out anonymous user - this is still in the same user action context
-            // The flag prevents automatic re-authentication
-            await firebaseSignOut(this.auth);
-            
-            // Small delay to ensure sign-out completes
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Now sign in with Google - still in user action context, so popup won't be blocked
-            result = await signInWithPopup(this.auth, provider, browserPopupRedirectResolver);
+      if (usePopup) {
+        // POPUP FLOW (localhost + desktop)
+        
+        // If user is currently anonymous, try to link the Google account to preserve data
+        if (currentUser && currentUser.isAnonymous) {
+          console.log('Attempting to link anonymous account with Google...');
+          try {
+            result = await linkWithPopup(currentUser, provider);
             user = result.user;
-            console.log('Signed in with Google after signing out anonymous account');
-            
-            // Show info dialog after a short delay to ensure sign-in completes
-            // Keep the flag set until dialog closes to prevent anonymous re-auth
-            setTimeout(() => {
-              const dialogRef = this.dialog.open(SignInInfoComponent, {
-                width: '400px',
-                data: {
-                  title: 'Signed In Successfully',
-                  icon: 'check_circle',
-                  message: 'You can now save setups, like (❤️) favorites, and access them from any device.',
-                  note: 'Note: Any setups created while anonymous remain on the anonymous account and won\'t be accessible with this Google account.'
-                }
-              });
+            console.log('Anonymous account successfully linked with Google');
+          } catch (linkError: any) {
+            // If linking fails, handle different error cases
+            if (linkError?.code === 'auth/credential-already-in-use') {
+              // The Google account is already linked to another account
+              // We can't link them. We need to sign out anonymous first, then sign in with Google
+              console.warn('Google account already in use with another account. Signing out anonymous and signing in with Google.');
               
-              // Reset flag only after dialog closes
-              dialogRef.afterClosed().subscribe(() => {
-                // Small delay before resetting flag to ensure auth state is stable
-                setTimeout(() => {
-                  this.isSigningInWithGoogle = false;
-                }, 500);
-              });
-            }, 500);
-          } else if (linkError?.code === 'auth/popup-blocked') {
-            // Popup was blocked - re-throw to be handled by outer catch
-            throw linkError;
-          } else if (linkError?.code === 'auth/popup-closed-by-user') {
-            // User closed popup - silently return
-            this.isSigningInWithGoogle = false; // Reset flag
-            return;
-          } else {
-            // Other linking errors - try regular sign in as fallback
-            console.warn('Failed to link anonymous account, attempting regular sign in:', linkError);
-            // Don't sign out - just try to sign in, which will switch accounts
-            result = await signInWithPopup(this.auth, provider, browserPopupRedirectResolver);
-            user = result.user;
-            console.log('Signed in with Google (anonymous account not linked)');
+              // Sign out anonymous user - this is still in the same user action context
+              // The flag prevents automatic re-authentication
+              await firebaseSignOut(this.auth);
+              
+              // Small delay to ensure sign-out completes
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Now sign in with Google - still in user action context, so popup won't be blocked
+              result = await signInWithPopup(this.auth, provider);
+              user = result.user;
+              console.log('Signed in with Google after signing out anonymous account');
+              
+              // Show info dialog after a short delay to ensure sign-in completes
+              // Keep the flag set until dialog closes to prevent anonymous re-auth
+              setTimeout(() => {
+                const dialogRef = this.dialog.open(SignInInfoComponent, {
+                  width: '400px',
+                  data: {
+                    title: 'Signed In Successfully',
+                    icon: 'check_circle',
+                    message: 'You can now save setups, like (❤️) favorites, and access them from any device.',
+                    note: 'Note: Any setups created while anonymous remain on the anonymous account and won\'t be accessible with this Google account.'
+                  }
+                });
+                
+                // Reset flag only after dialog closes
+                dialogRef.afterClosed().subscribe(() => {
+                  // Small delay before resetting flag to ensure auth state is stable
+                  setTimeout(() => {
+                    this.isSigningInWithGoogle = false;
+                  }, 500);
+                });
+              }, 500);
+            } else if (linkError?.code === 'auth/popup-blocked') {
+              // Popup was blocked - re-throw to be handled by outer catch
+              throw linkError;
+            } else if (linkError?.code === 'auth/popup-closed-by-user') {
+              // User closed popup - silently return
+              this.isSigningInWithGoogle = false; // Reset flag
+              return;
+            } else {
+              // Other linking errors - try regular sign in as fallback
+              console.warn('Failed to link anonymous account, attempting regular sign in:', linkError);
+              // Don't sign out - just try to sign in, which will switch accounts
+              result = await signInWithPopup(this.auth, provider);
+              user = result.user;
+              console.log('Signed in with Google (anonymous account not linked)');
+            }
           }
+        } else {
+          // Regular sign in (not anonymous)
+          result = await signInWithPopup(this.auth, provider);
+          user = result.user;
         }
-      } else {
-        // Regular sign in
-        result = await signInWithPopup(this.auth, provider, browserPopupRedirectResolver);
-        user = result.user;
         
         // Create or update user document
         await this.createOrUpdateUserDocument(user);
@@ -607,19 +611,6 @@ export class FirebaseService {
         
         // Refresh loadouts
         await this.refreshLoadouts();
-        
-        // If they were anonymous, show a helpful message
-        if (wasAnonymous) {
-          setTimeout(() => {
-            this.dialog.open(SignInInfoComponent, {
-              width: '400px',
-              data: {
-                message: 'Signed in successfully!',
-                note: 'Note: Setups created while anonymous remain on the anonymous account. You can recreate them if needed.'
-              }
-            });
-          }, 500);
-        }
         
       } else {
         // REDIRECT FLOW (mobile)
@@ -1008,6 +999,11 @@ export class FirebaseService {
       const user = this.currentUser.value;
       if (!user) throw new Error('Must be logged in to create loadout');
 
+      // Get user profile to fetch OSRS username
+      const userRef = doc(this.db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : null;
+
       // Create loadout in a transaction to update all related stats
       let loadoutId: string;
       await runTransaction(db, async (transaction) => {
@@ -1022,12 +1018,15 @@ export class FirebaseService {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           likes: 0,
-          views: 0
+          views: 0,
+          // Add creator attribution
+          creatorDisplayName: user.displayName || userData?.['displayName'] || 'Anonymous User',
+          creatorOsrsUsername: userData?.['osrsUsername'] || null
         });
 
         // Update user stats
-        const userRef = doc(this.db, 'users', user.uid);
-        transaction.update(userRef, {
+        const userRefTx = doc(this.db, 'users', user.uid);
+        transaction.update(userRefTx, {
           loadoutCount: increment(1),
           lastUpdated: serverTimestamp()
         });
@@ -1144,5 +1143,153 @@ export class FirebaseService {
   isLoadoutOwner(loadout: LoadoutData): boolean {
     const user = this.currentUser.value;
     return user ? loadout.userId === user.uid : false;
+  }
+
+  // ===== OSRS Username Management =====
+
+  /**
+   * Check if an OSRS username is available (not taken by another user)
+   */
+  async checkUsernameAvailability(username: string, currentUserId: string): Promise<boolean> {
+    try {
+      const usersRef = collection(this.db, 'users');
+      const q = query(usersRef, where('osrsUsername', '==', username));
+      const snapshot = await getDocs(q);
+      
+      // Username is available if no results OR the only result is the current user
+      return snapshot.empty || (snapshot.size === 1 && snapshot.docs[0].id === currentUserId);
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update user profile with OSRS username
+   * @param osrsUsername New OSRS username (or empty string to remove)
+   * @param updateExistingLoadouts If true, updates all user's loadouts with new creator info
+   */
+  async updateUserProfile(osrsUsername: string, updateExistingLoadouts: boolean = false): Promise<void> {
+    const user = this.currentUser.value;
+    if (!user) throw new Error('Must be signed in to update profile');
+
+    const trimmedUsername = osrsUsername.trim();
+    
+    // Validate username format (1-12 characters, alphanumeric + spaces/hyphens)
+    if (trimmedUsername && !/^[a-zA-Z0-9 -]{1,12}$/.test(trimmedUsername)) {
+      throw new Error('OSRS username must be 1-12 characters (letters, numbers, spaces, hyphens only)');
+    }
+
+    // Check availability if setting a new username
+    if (trimmedUsername) {
+      const isAvailable = await this.checkUsernameAvailability(trimmedUsername, user.uid);
+      if (!isAvailable) {
+        throw new Error('This OSRS username is already taken');
+      }
+    }
+
+    // Update user document
+    const userRef = doc(this.db, 'users', user.uid);
+    const updateData: any = {
+      lastUpdated: serverTimestamp()
+    };
+
+    if (trimmedUsername) {
+      updateData.osrsUsername = trimmedUsername;
+      updateData.osrsUsernameSetAt = serverTimestamp();
+    } else {
+      // Remove username fields
+      updateData.osrsUsername = null;
+      updateData.osrsUsernameSetAt = null;
+    }
+
+    await updateDoc(userRef, updateData);
+
+    // Optionally update all user's loadouts with new creator info
+    if (updateExistingLoadouts) {
+      await this.updateLoadoutsCreatorInfo(user.uid, user.displayName || '', trimmedUsername);
+    }
+  }
+
+  /**
+   * Batch update all user's loadouts with new creator display info
+   */
+  private async updateLoadoutsCreatorInfo(
+    userId: string, 
+    displayName: string, 
+    osrsUsername: string
+  ): Promise<void> {
+    try {
+      const loadoutsRef = collection(this.db, 'loadouts');
+      const q = query(loadoutsRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return;
+
+      // Batch update in groups of 500 (Firestore batch limit)
+      const batchSize = 500;
+      for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+        const batch = writeBatch(this.db);
+        const batchDocs = snapshot.docs.slice(i, i + batchSize);
+
+        batchDocs.forEach(docSnapshot => {
+          const loadoutRef = doc(this.db, 'loadouts', docSnapshot.id);
+          batch.update(loadoutRef, {
+            creatorDisplayName: displayName,
+            creatorOsrsUsername: osrsUsername || null,
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+      }
+
+      console.log(`Updated creator info for ${snapshot.docs.length} loadouts`);
+    } catch (error) {
+      console.error('Error updating loadouts creator info:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user by OSRS username
+   */
+  async getUserByOsrsUsername(username: string): Promise<{ uid: string; displayName: string } | null> {
+    try {
+      const usersRef = collection(this.db, 'users');
+      const q = query(usersRef, where('osrsUsername', '==', username));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return null;
+
+      const userData = snapshot.docs[0].data();
+      return {
+        uid: snapshot.docs[0].id,
+        displayName: userData['displayName'] || 'Unknown User'
+      };
+    } catch (error) {
+      console.error('Error getting user by username:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user profile data
+   */
+  async getUserProfile(userId: string): Promise<any> {
+    try {
+      const userRef = doc(this.db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) return null;
+      
+      return {
+        id: userSnap.id,
+        ...userSnap.data()
+      };
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
   }
 }

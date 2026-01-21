@@ -62,6 +62,27 @@
 
     <div class="header-actions">
       <ng-container *ngIf="currentUser$ | async as user; else signedOut">
+        <!-- Show user info when signed in with Google - clickable to edit profile -->
+        <button 
+          mat-stroked-button
+          class="user-profile-button"
+          *ngIf="!user.isAnonymous"
+          (click)="openUserProfile()"
+          matTooltip="Edit profile">
+          <mat-icon class="user-icon">account_circle</mat-icon>
+          <span class="user-name">{{ user.displayName || user.email }}</span>
+        </button>
+
+        <!-- Admin button (only visible to admins) -->
+        <button
+          mat-icon-button
+          *ngIf="isAdmin$ | async"
+          (click)="navigateToAdmin()"
+          class="admin-button"
+          matTooltip="Admin Portal">
+          <mat-icon>admin_panel_settings</mat-icon>
+        </button>
+
         <button
           mat-stroked-button
           class="auth-button"

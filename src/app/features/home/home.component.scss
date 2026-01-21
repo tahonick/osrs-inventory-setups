@@ -305,10 +305,22 @@
         font-size: 0.9rem;
         color: var(--mat-card-subtitle-text-color);
 
-        .date {
+        .left-info {
           display: flex;
-          align-items: center;
-          gap: 0.5rem;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          .date {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+
+          .creator {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            font-style: italic;
+          }
         }
 
         .metrics {

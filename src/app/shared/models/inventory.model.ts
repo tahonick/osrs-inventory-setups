@@ -56,6 +56,9 @@ export interface LoadoutData {
   updatedAt: Timestamp;
   originalFormat?: string;  // Add originalFormat property
   syncMetadata?: SyncMetadata;
+  // Creator attribution (denormalized for performance)
+  creatorDisplayName?: string;
+  creatorOsrsUsername?: string;
 }
 
 export interface Category {
@@ -67,4 +70,19 @@ export interface SpecialAttack extends Item {
   name: string;
   description: string;
   energyCost: number;
+}
+
+// User profile data stored in Firestore
+export interface UserProfile {
+  displayName: string;
+  email?: string;
+  photoURL?: string;
+  osrsUsername?: string;
+  osrsUsernameSetAt?: Timestamp;
+  lastActive: Timestamp;
+  loadoutCount: number;
+  totalLikes: number;
+  totalViews: number;
+  createdAt: Timestamp;
+  isAnonymous: boolean;
 } 

@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return request.auth != null && request.auth.uid in ['zVBENBUCoocuLjF7oGaomqgzzjo2'];
+    }
+
     // Loadouts collection
     match /loadouts/{loadoutId} {
       allow read: if true;
@@ -13,22 +17,32 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         // Allow owner to update their loadout (any fields)
         request.auth.uid == resource.data.userId ||
-        // Allow any authenticated user to update likes count only
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+        // Allow any authenticated user to update likes count
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) ||
+        // Allow any authenticated user to add/update tags (community tagging!)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tags', 'updatedAt']) ||
+        // Allow owner to update category
+        (request.auth.uid == resource.data.userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'updatedAt'])) ||
+        // Allow admins to update any loadout
+        isAdmin()
       );
-      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow delete: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
     // Users collection and subcollections
     match /users/{userId} {
       allow read: if true;
-      // Allow updates to totalLikes field by any authenticated user
+      // Allow updates to specific fields by different parties
       allow update: if isSignedIn() && (
+        // User can update their own profile (including osrsUsername)
         request.auth.uid == userId ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalLikes', 'lastUpdated'])
+        // Any authenticated user can update totalLikes
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalLikes', 'lastUpdated']) ||
+        // Admins can update any user
+        isAdmin()
       );
-      // Allow other writes only by the user
-      allow create, delete: if isSignedIn() && request.auth.uid == userId;
+      // Allow other writes only by the user or admin
+      allow create, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
 
       // Allow access to likes subcollection
       match /likes/{likeId} {
@@ -41,6 +55,12 @@ service cloud.firestore {
     match /stats/global {
       allow read: if true;
       allow write: if isSignedIn();
+    }
+
+    // Admin configuration
+    match /config/admins {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // Allow collection group query for likes
