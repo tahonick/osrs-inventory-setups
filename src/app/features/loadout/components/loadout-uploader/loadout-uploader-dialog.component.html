@@ -1,46 +1,37 @@
-<div class="dialog-container" [class.has-preview]="loadoutPreview">
-  <div class="header">
-    <h2 mat-dialog-title>
+<div class="wizard-container">
+  <div class="wizard-header">
+    <h2>
       <mat-icon>upload_file</mat-icon>
       Upload Loadout
     </h2>
-    <div class="header-actions">
-      <button 
-        mat-icon-button 
-        *ngIf="loadoutPreview"
-        (click)="copyToClipboard()"
-        matTooltip="Copy to clipboard">
-        <mat-icon>content_copy</mat-icon>
-      </button>
-      <button mat-icon-button mat-dialog-close>
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
+    <button mat-icon-button (click)="dialogRef.close()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
   </div>
 
-  <div class="content-wrapper" [class.has-preview]="loadoutPreview">
-    <div class="input-section">
-      <mat-dialog-content>
+  <mat-horizontal-stepper #stepper [linear]="true" class="wizard-stepper">
+    
+    <!-- STEP 1: UPLOAD -->
+    <mat-step [completed]="canProceedFromUpload()">
+      <ng-template matStepLabel>Upload</ng-template>
+      
+      <div class="step-content">
+        <h3>Paste Loadout JSON</h3>
+        <p class="step-description">
+          Paste your loadout JSON here to import it.
+        </p>
+
         <form [formGroup]="jsonForm">
-          <mat-form-field appearance="outline" class="json-field" [class.expanded]="isExpanded">
-            <mat-label>Paste Loadout JSON</mat-label>
+          <mat-form-field appearance="outline" class="json-field full-width">
+            <mat-label>Loadout JSON</mat-label>
             <textarea
               matInput
               formControlName="json"
-              rows="8"
+              rows="12"
               (paste)="onPaste($event)"
               placeholder="Paste your loadout JSON here...">
             </textarea>
             <div class="field-actions">
-              <button 
-                mat-icon-button 
-                type="button"
-                *ngIf="loadoutPreview"
-                (click)="isExpanded = !isExpanded"
-                [matTooltip]="isExpanded ? 'Collapse' : 'Expand'"
-                class="expand-button">
-                <mat-icon>{{ isExpanded ? 'unfold_less' : 'unfold_more' }}</mat-icon>
-              </button>
               <button 
                 mat-icon-button 
                 type="button"
@@ -50,139 +41,331 @@
               </button>
             </div>
           </mat-form-field>
-
-          <div class="additional-fields" [class.visible]="loadoutPreview">
-            <mat-form-field appearance="outline">
-              <mat-label>Category</mat-label>
-              <mat-select formControlName="category">
-                <mat-option *ngFor="let cat of categories" [value]="cat.value">
-                  <mat-icon>{{ cat.value === 'PVM' ? 'swords' : cat.value === 'Skilling' ? 'trending_up' : cat.value === 'PvP' ? 'shield' : 'category' }}</mat-icon>
-                  {{ cat.label }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Tags</mat-label>
-              <mat-select formControlName="tags" multiple>
-                <mat-option *ngFor="let tag of availableTags" [value]="tag">
-                  <mat-icon>{{ 
-                    tag === 'Bossing' ? 'security' :
-                    tag === 'Slayer' ? 'local_fire_department' :
-                    tag === 'Raids' ? 'groups' :
-                    tag === 'Wilderness' ? 'warning' :
-                    tag === 'Skilling' ? 'build' :
-                    tag === 'Money-maker' ? 'attach_money' :
-                    tag === 'Beginner' ? 'school' :
-                    tag === 'Leagues' ? 'emoji_events' :
-                    'stars'
-                  }}</mat-icon>
-                  {{ tag }}
-                </mat-option>
-              </mat-select>
-              <mat-hint>Select multiple tags to help others find your loadout</mat-hint>
-            </mat-form-field>
-          </div>
         </form>
-      </mat-dialog-content>
-    </div>
 
-    <div class="preview-section" *ngIf="loadoutPreview">
-      <div class="preview-header">
-        <h3>
-          <mat-icon>preview</mat-icon>
-          {{ loadoutPreview.setup.name }}
-        </h3>
-        <div class="preview-meta" *ngIf="jsonForm.get('tags')?.value?.length || jsonForm.get('category')?.value !== 'Other'">
-          <mat-chip-set>
-            <mat-chip color="primary" highlighted>{{ loadoutPreview.category }}</mat-chip>
-            <mat-chip *ngFor="let tag of jsonForm.get('tags')?.value || []">{{ tag }}</mat-chip>
-          </mat-chip-set>
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button mat-dialog-close>Cancel</button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromUpload()"
+                  (click)="stepper?.next()">
+            Next
+          </button>
         </div>
       </div>
+    </mat-step>
+
+    <!-- STEP 2: REVIEW -->
+    <mat-step [completed]="canProceedFromReview()">
+      <ng-template matStepLabel>Review</ng-template>
       
-      <div class="preview-content">
-        <!-- Show for inventory setup type -->
-        <ng-container *ngIf="loadoutPreview.type === 'inventory'">
-          <div class="preview-grid">
-            <!-- Equipment Section -->
-            <div class="section">
-              <div class="section-title">
-                <mat-icon>accessibility</mat-icon>
-                Equipped Items
-              </div>
-              <app-equipment-slots
-                [equipment]="loadoutPreview.setup.eq"
-                [spellbookId]="loadoutPreview.setup.sb ?? 0">
-              </app-equipment-slots>
-            </div>
+      <div class="step-content">
+        <h3>Review Setup</h3>
+        <p class="step-description">
+          Review your loadout before importing.
+        </p>
 
-            <!-- Inventory Section -->
-            <div class="section">
-              <div class="section-title">
-                <mat-icon>grid_view</mat-icon>
-                Storage Items
-              </div>
-              <div class="inventory-container">
-                <div class="inventory-wrapper">
-                  <app-inventory-grid
-                    [items]="loadoutPreview.setup.inv"
-                    [layout]="loadoutPreview.layout ?? []">
-                  </app-inventory-grid>
+        <div *ngIf="loadoutPreview" class="preview-content">
+          <div class="preview-header">
+            <h4>{{ loadoutPreview.setup.name }}</h4>
+          </div>
+          
+          <!-- Show for inventory setup type -->
+          <ng-container *ngIf="loadoutPreview.type === 'inventory'">
+            <div class="preview-grid">
+              <!-- Equipment Section -->
+              <div class="section">
+                <div class="section-title">
+                  <mat-icon>accessibility</mat-icon>
+                  Equipped Items
                 </div>
-                <app-rune-pouch
-                  *ngIf="loadoutPreview.setup.rp?.length"
-                  [runes]="loadoutPreview.setup.rp || []">
-                </app-rune-pouch>
+                <app-equipment-slots
+                  [equipment]="loadoutPreview.setup.eq"
+                  [spellbookId]="loadoutPreview.setup.sb ?? 0">
+                </app-equipment-slots>
+              </div>
+
+              <!-- Inventory Section -->
+              <div class="section">
+                <div class="section-title">
+                  <mat-icon>grid_view</mat-icon>
+                  Storage Items
+                </div>
+                <div class="inventory-container">
+                  <div class="inventory-wrapper">
+                    <app-inventory-grid
+                      [items]="loadoutPreview.setup.inv"
+                      [layout]="loadoutPreview.layout ?? []">
+                    </app-inventory-grid>
+                  </div>
+                  <app-rune-pouch
+                    *ngIf="loadoutPreview.setup.rp?.length"
+                    [runes]="loadoutPreview.setup.rp || []">
+                  </app-rune-pouch>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Show for bank tag or bank tag layout type -->
+          <ng-container *ngIf="loadoutPreview.type === 'banktag' || loadoutPreview.type === 'banktaglayout'">
+            <div class="section">
+              <div class="section-title">
+                <mat-icon>grid_on</mat-icon>
+                {{ loadoutPreview.type === 'banktag' ? 'Bank Tag' : 'Bank Tag Layout' }}
+              </div>
+              <app-bank-tag-layout-grid
+                *ngIf="bankTagLayout"
+                [layout]="bankTagLayout">
+              </app-bank-tag-layout-grid>
+            </div>
+          </ng-container>
+
+          <!-- Additional Items Section -->
+          <div class="section" *ngIf="hasAfiItems() && loadoutPreview.type === 'inventory'">
+            <div class="section-title">
+              <mat-icon>filter_list</mat-icon>
+              Additional Items
+            </div>
+            <div class="filtered-items">
+              <div class="item" *ngFor="let item of getAfiItems()">
+                <img [src]="getItemImageUrl(item.value.id)" [alt]="'Item ' + item.value.id">
+                <div class="item-tooltip">{{ getItemName(item.value.id) }}</div>
               </div>
             </div>
           </div>
-        </ng-container>
 
-        <!-- Show for bank tag or bank tag layout type -->
-        <ng-container *ngIf="loadoutPreview.type === 'banktag' || loadoutPreview.type === 'banktaglayout'">
-          <div class="section">
+          <!-- Notes Section -->
+          <div class="section notes-section" *ngIf="loadoutPreview.setup.notes">
             <div class="section-title">
-              <mat-icon>grid_on</mat-icon>
-              {{ loadoutPreview.type === 'banktag' ? 'Bank Tag' : 'Bank Tag Layout' }}
+              <mat-icon>notes</mat-icon>
+              Notes
             </div>
-            <app-bank-tag-layout-grid
-              *ngIf="bankTagLayout"
-              [layout]="bankTagLayout">
-            </app-bank-tag-layout-grid>
-          </div>
-        </ng-container>
-
-        <!-- Additional Items Section - Only show for inventory type -->
-        <div class="section" *ngIf="hasAfiItems() && loadoutPreview.type === 'inventory'">
-          <div class="section-title">
-            <mat-icon>filter_list</mat-icon>
-            Additional Items
-          </div>
-          <div class="filtered-items">
-            <div class="item" *ngFor="let item of getAfiItems()">
-              <img [src]="getItemImageUrl(item.value.id)" [alt]="'Item ' + item.value.id">
-              <div class="item-tooltip">{{ getItemName(item.value.id) }}</div>
-            </div>
+            <div class="notes-content">{{ loadoutPreview.setup.notes }}</div>
           </div>
         </div>
 
-        <!-- Notes Section -->
-        <div class="section notes-section" *ngIf="loadoutPreview.setup.notes">
-          <div class="section-title">
-            <mat-icon>notes</mat-icon>
-            Notes
-          </div>
-          <div class="notes-content">{{ loadoutPreview.setup.notes }}</div>
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper?.previous()">Back</button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromReview() || detectingDuplicate"
+                  (click)="onReviewNext()">
+            <mat-progress-spinner *ngIf="detectingDuplicate" diameter="20" mode="indeterminate" class="inline-spinner"></mat-progress-spinner>
+            <span *ngIf="!detectingDuplicate">Next</span>
+            <span *ngIf="detectingDuplicate">Checking...</span>
+          </button>
         </div>
       </div>
-    </div>
-  </div>
+    </mat-step>
 
-  <mat-dialog-actions align="end">
-    <button mat-button mat-dialog-close>Cancel</button>
-    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!loadoutPreview">
-      Save
-    </button>
-  </mat-dialog-actions>
-</div> 
+    <!-- STEP 3: DUPLICATES -->
+    <mat-step [completed]="canProceedFromDuplicates()">
+      <ng-template matStepLabel>Duplicates</ng-template>
+      
+      <div class="step-content">
+        <h3>Handle Duplicate Setup</h3>
+        <p class="step-description">
+          <span *ngIf="duplicateMatch">
+            <span *ngIf="isExactMatch(duplicateMatch)">
+              This setup is 100% identical to an existing setup and will be automatically skipped.
+            </span>
+            <span *ngIf="!isExactMatch(duplicateMatch)">
+              This setup is {{ duplicateMatch.similarityScore }}% similar to an existing setup. Choose how to handle it.
+            </span>
+          </span>
+          <span *ngIf="!duplicateMatch">
+            No duplicates found. You can proceed to the next step.
+          </span>
+        </p>
+
+        <!-- Loading -->
+        <div *ngIf="detectingDuplicate" class="loading-container">
+          <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+          <span>Detecting duplicates...</span>
+        </div>
+
+        <!-- No Duplicates -->
+        <div *ngIf="!detectingDuplicate && !duplicateMatch" class="no-duplicates">
+          <mat-icon>check_circle</mat-icon>
+          <h4>No Duplicates Found!</h4>
+          <p>This setup is unique. You can proceed to the next step.</p>
+        </div>
+
+        <!-- Duplicate Viewer -->
+        <div *ngIf="!detectingDuplicate && duplicateMatch">
+          <app-setup-diff-viewer
+            [match]="duplicateMatch"
+            [currentIndex]="0"
+            [totalMatches]="1"
+            [currentUserId]="currentUserId"
+            [hideActionSelection]="true"
+            (actionChanged)="onDuplicateActionChanged($event)">
+          </app-setup-diff-viewer>
+
+          <div class="duplicate-actions" *ngIf="!isExactMatch(duplicateMatch)">
+            <mat-radio-group [(ngModel)]="duplicateAction" class="action-radio-group">
+              <mat-radio-button value="skip" class="action-radio">
+                <mat-icon>skip_next</mat-icon>
+                <div>
+                  <strong>Skip</strong>
+                  <span>Don't import this setup</span>
+                </div>
+              </mat-radio-button>
+              <mat-radio-button value="replace" class="action-radio">
+                <mat-icon>swap_horiz</mat-icon>
+                <div>
+                  <strong>Replace</strong>
+                  <span>Replace the existing setup</span>
+                </div>
+              </mat-radio-button>
+              <mat-radio-button value="keep_both" class="action-radio">
+                <mat-icon>add</mat-icon>
+                <div>
+                  <strong>Keep Both</strong>
+                  <span>Import with a different name</span>
+                </div>
+              </mat-radio-button>
+            </mat-radio-group>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper?.previous()">Back</button>
+          <button mat-button (click)="skipDuplicateStep()" 
+                  *ngIf="!duplicateMatch">
+            Skip
+          </button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromDuplicates()"
+                  (click)="onDuplicatesNext()">
+            {{ duplicateMatch && duplicateAction === 'skip' ? 'Skip & Close' : 'Next' }}
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <!-- STEP 4: CONFIGURE -->
+    <mat-step [completed]="canProceedFromConfigure()">
+      <ng-template matStepLabel>Configure</ng-template>
+      
+      <div class="step-content">
+        <h3>Configure Metadata</h3>
+        <p class="step-description">
+          Set the category and tags for your loadout.
+        </p>
+
+        <form [formGroup]="jsonForm" class="config-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Category</mat-label>
+            <mat-select formControlName="category">
+              <mat-option *ngFor="let cat of categories" [value]="cat.value">
+                <mat-icon>{{ cat.value === 'PVM' ? 'swords' : cat.value === 'Skilling' ? 'trending_up' : cat.value === 'PvP' ? 'shield' : 'category' }}</mat-icon>
+                {{ cat.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Tags</mat-label>
+            <mat-select formControlName="tags" multiple>
+              <mat-option *ngFor="let tag of availableTags" [value]="tag">
+                <mat-icon>{{ 
+                  tag === 'Bossing' ? 'security' :
+                  tag === 'Slayer' ? 'local_fire_department' :
+                  tag === 'Raids' ? 'groups' :
+                  tag === 'Wilderness' ? 'warning' :
+                  tag === 'Skilling' ? 'build' :
+                  tag === 'Money-maker' ? 'attach_money' :
+                  tag === 'Beginner' ? 'school' :
+                  tag === 'Leagues' ? 'emoji_events' :
+                  'stars'
+                }}</mat-icon>
+                {{ tag }}
+              </mat-option>
+            </mat-select>
+            <mat-hint>Select multiple tags to help others find your loadout</mat-hint>
+          </mat-form-field>
+        </form>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper?.previous()">Back</button>
+          <button mat-raised-button color="primary" 
+                  [disabled]="!canProceedFromConfigure()"
+                  (click)="stepper?.next()">
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+    <!-- STEP 5: CONFIRM -->
+    <mat-step>
+      <ng-template matStepLabel>Confirm</ng-template>
+      
+      <div class="step-content">
+        <h3>Ready to Import</h3>
+        <p class="step-description">
+          Review your import summary and click "Import" to proceed.
+        </p>
+
+        <div class="import-summary">
+          <div class="summary-item">
+            <mat-icon>playlist_add</mat-icon>
+            <div class="summary-content">
+              <span class="summary-label">Loadout Name</span>
+              <span class="summary-value">{{ loadoutPreview?.setup?.name || 'Unnamed' }}</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <mat-icon>category</mat-icon>
+            <div class="summary-content">
+              <span class="summary-label">Category</span>
+              <span class="summary-value">{{ jsonForm.get('category')?.value || 'Other' }}</span>
+            </div>
+          </div>
+
+          <div class="summary-item" *ngIf="jsonForm.get('tags')?.value?.length">
+            <mat-icon>label</mat-icon>
+            <div class="summary-content">
+              <span class="summary-label">Tags</span>
+              <span class="summary-value">{{ (jsonForm.get('tags')?.value || []).join(', ') }}</span>
+            </div>
+          </div>
+
+          <div class="summary-item" *ngIf="loadoutPreview?.setup?.rp?.length">
+            <mat-icon>inventory_2</mat-icon>
+            <div class="summary-content">
+              <span class="summary-label">Rune Pouch</span>
+              <span class="summary-value">{{ getRunePouchSummary() }}</span>
+            </div>
+          </div>
+
+          <div class="summary-item" *ngIf="duplicateMatch">
+            <mat-icon>{{ duplicateAction === 'skip' ? 'skip_next' : duplicateAction === 'replace' ? 'swap_horiz' : 'add' }}</mat-icon>
+            <div class="summary-content">
+              <span class="summary-label">Duplicate Action</span>
+              <span class="summary-value">
+                {{ duplicateAction === 'skip' ? 'Skip' : duplicateAction === 'replace' ? 'Replace' : 'Keep Both' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="step-actions">
+          <button mat-button (click)="stepper?.previous()">Back</button>
+          <button mat-raised-button color="primary" 
+                  (click)="onSubmit()"
+                  [disabled]="!loadoutPreview">
+            Import
+          </button>
+        </div>
+      </div>
+    </mat-step>
+
+  </mat-horizontal-stepper>
+</div>

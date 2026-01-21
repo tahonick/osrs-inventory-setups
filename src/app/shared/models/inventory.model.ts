@@ -3,6 +3,8 @@ import type { Timestamp } from 'firebase/firestore';
 export interface Item {
   id: number;
   q?: number;  // quantity for stackable items
+  f?: boolean; // fuzzy/variant flag (indicates item is a variant)
+  sc?: 'Standard' | 'Greater_Than' | 'Less_Than' | 'Not_Equal'; // similarity comparison for rune pouch
 }
 
 export type Equipment = Item;

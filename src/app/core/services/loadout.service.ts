@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest } from 'rxjs';
+import { BehaviorSubject, Observable, combineLatest, firstValueFrom } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { LoadoutData, Category } from '../../shared/models/inventory.model';
 import { FirebaseService, LoadoutQueryOptions } from './firebase.service';
@@ -510,11 +510,17 @@ export class LoadoutService {
 
       const db = this.firebaseService.getFirestore();
 
+      // Get user profile to fetch displayName and osrsUsername for attribution
+      const user = await firstValueFrom(this.firebaseService.getCurrentUser());
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.exists() ? userSnap.data() : null;
+
       // Create a new document reference with auto-generated ID
       const loadoutRef = doc(collection(db, 'loadouts'));
       const loadoutId = loadoutRef.id;
 
-      // Create the loadout with userId and timestamps
+      // Create the loadout with userId, creator attribution, and timestamps
       const loadoutWithTimestamps = {
         ...loadout,
         id: loadoutId,
@@ -524,7 +530,10 @@ export class LoadoutService {
         isPublic: loadout.isPublic ?? true,
         version: loadout.version ?? 1,
         likes: 0,
-        views: 0
+        views: 0,
+        // Add creator attribution
+        creatorDisplayName: user?.displayName || userData?.['displayName'] || 'Anonymous User',
+        creatorOsrsUsername: userData?.['osrsUsername'] || null
       };
 
       console.log('✅ Creating loadout:', {
@@ -538,7 +547,9 @@ export class LoadoutService {
       const newLoadout = {
         ...loadoutWithTimestamps,
         createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date())
+        updatedAt: Timestamp.fromDate(new Date()),
+        creatorDisplayName: user?.displayName || userData?.['displayName'] || 'Anonymous User',
+        creatorOsrsUsername: userData?.['osrsUsername'] || null
       } as LoadoutData;
 
       // Update the loadouts list with the new loadout based on current sort

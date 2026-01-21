@@ -1,6 +1,207 @@
 @use '@angular/material' as mat;
 @use '../../../../shared/styles/item' as item;
 
+// Wizard Container (shared with bulk import)
+.wizard-container {
+  width: 100%;
+  max-width: 1400px;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-color, #1e1e1e);
+}
+
+.wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.8rem;
+  }
+
+  .close-button {
+    margin-left: auto;
+  }
+}
+
+.wizard-stepper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.step-content {
+  padding: 24px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 1.5rem;
+  }
+
+  .step-description {
+    margin: 0 0 24px 0;
+    opacity: 0.7;
+    font-size: 1rem;
+  }
+}
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 600px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px;
+
+  span {
+    font-size: 1.1rem;
+    opacity: 0.8;
+  }
+}
+
+.no-duplicates {
+  text-align: center;
+  padding: 60px 20px;
+
+  mat-icon {
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
+    color: #4caf50;
+    margin-bottom: 16px;
+  }
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 1.5rem;
+  }
+
+  p {
+    opacity: 0.7;
+    font-size: 1rem;
+  }
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+
+    mat-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: #2196f3;
+    }
+
+    .summary-content {
+      display: flex;
+      flex-direction: column;
+
+      .summary-label {
+        font-size: 0.9rem;
+        opacity: 0.7;
+      }
+
+      .summary-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.inline-spinner {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.duplicate-actions {
+  margin: 24px 0;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+
+  .action-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .action-radio {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+
+      div {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        strong {
+          font-size: 1rem;
+        }
+
+        span {
+          font-size: 0.85rem;
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+}
+
 @mixin item-box {
   background: var(--mat-dialog-container-background-color);
   border: 1px solid var(--mat-dialog-container-divider-color);
@@ -89,86 +290,10 @@
   }
 }
 
-.dialog-container {
-  display: flex;
-  flex-direction: column;
-  height: 80vh;
-  background: var(--mat-dialog-container-background-color);
-  position: relative;
-  overflow: hidden;
-
-  @media (max-height: 800px) {
-    height: 90vh;
-  }
-}
-
-.header {
-  position: relative;
-  width: 100%;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--mat-dialog-container-divider-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--mat-dialog-container-background-color);
-  z-index: 2;
-
-  h2 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-size: 20px;
-    font-weight: 500;
-    color: var(--mat-dialog-container-text-color);
-  }
-}
-
-.content-wrapper {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  gap: 24px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-
-  &.has-preview {
-    background: linear-gradient(
-      to right,
-      var(--mat-dialog-container-background-color) 350px,
-      var(--mat-app-background-color) 350px
-    );
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 8px;
-    background: transparent;
-  }
-}
-
-.input-section {
-  flex: 0 0 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--mat-dialog-container-background-color);
-  z-index: 1;
-  overflow: hidden;
-  transition: flex 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  .content-wrapper.has-preview & {
-    flex: 0 0 350px;
-    box-shadow: var(--mat-dialog-container-elevation);
-  }
-}
+// Old dialog styles removed - using wizard-container now
 
 .json-field {
   width: 100%;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 
   .field-actions {
@@ -192,69 +317,26 @@
     }
   }
 
-  .content-wrapper.has-preview & {
-    textarea {
-      max-height: 100px;
-      padding-right: 80px;
-    }
-  }
-
-  &.expanded textarea {
-    max-height: none !important;
-  }
-
   ::ng-deep {
     .mat-mdc-form-field-subscript-wrapper {
       display: none;
     }
-
-    .mat-mdc-form-field-infix {
-      textarea {
-        padding-right: 80px;
-      }
-    }
   }
 }
 
-.preview-section {
+.preview-content {
   flex: 1;
-  padding: 16px;
   overflow-y: auto;
-  background: var(--mat-app-background-color);
-  animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-
-  /* Webkit (Chrome, Safari, Edge) */
-  &::-webkit-scrollbar {
-    width: 6px;
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(128, 128, 128, 0.2);
-    border-radius: 3px;
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: rgba(128, 128, 128, 0.4);
-    }
-  }
-
-  /* Firefox */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-
-  &:hover {
-    scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
-  }
+  padding: 16px 0;
 }
 
 .preview-header {
   margin-bottom: 16px;
+
+  h4 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
 }
 
 .preview-grid {
@@ -312,62 +394,7 @@
   }
 }
 
-.additional-fields {
-  display: none;
-  margin-top: 16px;
-  opacity: 0;
-  height: 0;
-  overflow: hidden;
-  transform: translateY(-10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &.visible {
-    display: block;
-    opacity: 1;
-    height: auto;
-    overflow: visible;
-    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
-}
-
-mat-form-field {
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-mat-dialog-content {
-  padding: 24px !important;
-  flex: 1;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--mat-dialog-container-divider-color);
-    border-radius: 4px;
-
-    &:hover {
-      background-color: var(--mat-primary-color);
-    }
-  }
-}
-
-mat-dialog-actions {
-  padding: 16px 24px;
-  margin: 0;
-  background: var(--mat-dialog-container-background-color);
-  border-top: 1px solid var(--mat-dialog-container-divider-color);
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 1;
-}
+// Removed old dialog-specific styles - using wizard structure now
 
 .notes-content {
   white-space: pre-wrap;

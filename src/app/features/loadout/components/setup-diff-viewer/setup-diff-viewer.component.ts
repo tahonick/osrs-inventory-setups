@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { DuplicateMatch, ItemDiff } from '../../../../core/services/duplicate-detection.service';
 import { OsrsApiService } from '../../../../core/services/osrs-api.service';
 import { Item } from '../../../../shared/models/inventory.model';
+import { RunePouchComponent } from '../../../inventory/components/rune-pouch/rune-pouch.component';
 
 @Component({
   selector: 'app-setup-diff-viewer',
@@ -22,7 +23,8 @@ import { Item } from '../../../../shared/models/inventory.model';
     MatButtonModule,
     MatIconModule,
     MatRadioModule,
-    MatTooltipModule
+    MatTooltipModule,
+    RunePouchComponent
   ]
 })
 export class SetupDiffViewerComponent {
@@ -30,6 +32,7 @@ export class SetupDiffViewerComponent {
   @Input() currentIndex: number = 0;
   @Input() totalMatches: number = 1;
   @Input() currentUserId?: string; // For ownership check
+  @Input() hideActionSelection: boolean = false; // Hide action selection when used in single upload dialog
   @Output() actionChanged = new EventEmitter<'skip' | 'replace' | 'keep_both'>();
   @Output() next = new EventEmitter<void>();
   @Output() previous = new EventEmitter<void>();
@@ -96,18 +99,56 @@ export class SetupDiffViewerComponent {
       return 'diff-removed';
     }
 
-    // If quantity changed
+    // Check for fuzzy match (highlight as different)
+    if (diff.fuzzyMatch && diff.fuzzyMatch.some(fuzzy => fuzzy.item1.id === item.id)) {
+      return 'diff-fuzzy';
+    }
+
+    // If quantity changed (highlight as different)
     const qtyChange = diff.quantityChanged.find(changed => changed.item.id === item.id);
     if (qtyChange) {
       return 'diff-quantity';
     }
 
-    // If item exists in both
+    // If item exists in both and is identical
     if (diff.identical.some(identical => identical.id === item.id)) {
       return 'diff-identical';
     }
 
     return '';
+  }
+
+  /**
+   * Check if an item is a fuzzy match (different variant of same base item)
+   */
+  isFuzzyMatch(item: Item | null, slotType: 'inventory' | 'equipment', isExisting: boolean): boolean {
+    if (!item) return false;
+
+    const diff = slotType === 'inventory'
+      ? this.match.differences.inventoryDiff
+      : this.match.differences.equipmentDiff;
+
+    if (!diff.fuzzyMatch) return false;
+
+    if (isExisting) {
+      return diff.fuzzyMatch.some(fuzzy => fuzzy.item1.id === item.id);
+    } else {
+      return diff.fuzzyMatch.some(fuzzy => fuzzy.item2.id === item.id);
+    }
+  }
+
+  /**
+   * Check if an item has a quantity difference
+   */
+  hasQuantityDifference(item: Item | null, slotType: 'inventory' | 'equipment'): { oldQty: number; newQty: number } | null {
+    if (!item) return null;
+
+    const diff = slotType === 'inventory'
+      ? this.match.differences.inventoryDiff
+      : this.match.differences.equipmentDiff;
+
+    const qtyChange = diff.quantityChanged.find(changed => changed.item.id === item.id);
+    return qtyChange ? { oldQty: qtyChange.oldQty, newQty: qtyChange.newQty } : null;
   }
 
   /**
@@ -125,12 +166,17 @@ export class SetupDiffViewerComponent {
       return 'diff-added';
     }
 
-    // If quantity changed
+    // Check for fuzzy match (highlight as different)
+    if (diff.fuzzyMatch && diff.fuzzyMatch.some(fuzzy => fuzzy.item2.id === item.id)) {
+      return 'diff-fuzzy';
+    }
+
+    // If quantity changed (highlight as different)
     if (diff.quantityChanged.some(changed => changed.item.id === item.id)) {
       return 'diff-quantity';
     }
 
-    // If item exists in both
+    // If item exists in both and is identical
     if (diff.identical.some(identical => identical.id === item.id)) {
       return 'diff-identical';
     }

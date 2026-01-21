@@ -1,8 +1,9 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { Equipment } from '../../../../shared/models/inventory.model';
+import { Equipment, Setup } from '../../../../shared/models/inventory.model';
 import { OsrsApiService } from '../../../../core/services/osrs-api.service';
+import { DuplicateDetectionService } from '../../../../core/services/duplicate-detection.service';
 
 interface GridPosition {
   row: number;
@@ -34,14 +35,16 @@ type GridPositionsMap = Record<EquipmentSlot, GridPosition>;
   standalone: true,
   imports: [CommonModule, MatIconModule]
 })
-export class EquipmentSlotsComponent {
+export class EquipmentSlotsComponent implements OnChanges {
   @Input() equipment: (Equipment | null)[] = [];
   @Input() spellbookId = 0;
   @Input() compact = false;
+  @Input() comparisonSetup?: Setup; // Optional setup to compare against
   @Output() equipmentChange = new EventEmitter<{ equipment: (Equipment | null)[] }>();
   @Output() spellbookChange = new EventEmitter<{ spellbookId: number }>();
 
   readonly SLOTS = EquipmentSlot;
+  private comparisonDiff: any = null;
 
   // Grid positions following OSRS 1-3-3-1-3 pattern
   readonly GRID_POSITIONS: GridPositionsMap = {
@@ -65,7 +68,22 @@ export class EquipmentSlotsComponent {
     3: { name: 'Arceuus', image: 'Arceuus_spellbook.png' }
   } as const;
 
-  constructor(private osrsApi: OsrsApiService) {}
+  constructor(
+    private osrsApi: OsrsApiService,
+    private duplicateDetection: DuplicateDetectionService
+  ) {}
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (this.comparisonSetup && (changes['equipment'] || changes['comparisonSetup'])) {
+      const currentSetup: Setup = {
+        inv: [],
+        eq: this.equipment,
+        name: '',
+        rp: []
+      };
+      this.comparisonDiff = this.duplicateDetection.calculateDifferences(currentSetup, this.comparisonSetup);
+    }
+  }
 
   getItemImageUrl(id: number): string {
     return this.osrsApi.getItemImageUrl(id);
@@ -103,5 +121,58 @@ export class EquipmentSlotsComponent {
 
   trackByFn(index: number): number {
     return index;
+  }
+
+  /**
+   * Check if an item is a variant (has f:true flag or negative ID, indicating it's a variant of the base item)
+   * This shows the indicator in ALL views, not just when comparing
+   */
+  isVariant(item: Equipment | null): boolean {
+    if (!item) return false;
+    // Check for f:true flag (from RuneLite export) or negative ID
+    // The f property indicates a fuzzy/variant match in RuneLite exports
+    const itemAny = item as any;
+    // Check for f property (can be true, "true", or 1)
+    const hasF = itemAny.f === true || itemAny.f === 'true' || itemAny.f === 1;
+    const hasNegativeId = item.id < 0;
+    return hasF || hasNegativeId;
+  }
+
+  /**
+   * Check if an item is a fuzzy match (different variant of same base item) when comparing
+   */
+  isFuzzyMatch(item: Equipment | null, slotIndex: number): boolean {
+    if (!item || !this.comparisonDiff) return false;
+    const comparisonItem = this.comparisonSetup?.eq?.[slotIndex];
+    if (!comparisonItem) return false;
+    
+    return this.comparisonDiff.equipmentDiff.fuzzyMatch?.some(
+      (fuzzy: any) => fuzzy.item1.id === item.id || fuzzy.item2.id === item.id
+    ) || false;
+  }
+
+  /**
+   * Check if an item has a quantity difference when comparing
+   */
+  hasQuantityDifference(item: Equipment | null, slotIndex: number): { oldQty: number; newQty: number } | null {
+    if (!item || !this.comparisonDiff) return null;
+    const qtyChange = this.comparisonDiff.equipmentDiff.quantityChanged?.find(
+      (changed: any) => changed.item.id === item.id
+    );
+    return qtyChange ? { oldQty: qtyChange.oldQty, newQty: qtyChange.newQty } : null;
+  }
+
+  /**
+   * Check if item has quantity (for showing quantity indicator in all views)
+   */
+  hasQuantity(item: Equipment | null): boolean {
+    return !!(item && item.q && item.q > 1);
+  }
+
+  /**
+   * Normalize item ID for fuzzy matching
+   */
+  private normalizeItemId(itemId: number): number {
+    return Math.abs(itemId);
   }
 } 

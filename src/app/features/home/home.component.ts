@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -82,6 +83,7 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   showMobileSearch = false;
   showAllTags = false;
   @ViewChild('searchInput') searchInput!: ElementRef;
+  @ViewChild('desktopFilterMenuTrigger') desktopFilterMenuTrigger!: MatMenuTrigger;
 
   private subscriptions = new Subscription();
   private observer: IntersectionObserver | null = null;
@@ -239,17 +241,26 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   openMobileSearch() {
-    // Toggle the overlay instead of just opening
-    this.showMobileSearch = !this.showMobileSearch;
-    if (this.showMobileSearch) {
-      setTimeout(() => {
-        this.searchInput?.nativeElement?.focus();
-      }, 300);
+    // Only toggle overlay on mobile/tablet
+    // On desktop, the menu will handle it
+    if (window.innerWidth <= 768) {
+      this.showMobileSearch = !this.showMobileSearch;
+      if (this.showMobileSearch) {
+        setTimeout(() => {
+          this.searchInput?.nativeElement?.focus();
+        }, 300);
+      }
     }
   }
 
   closeMobileSearch() {
     this.showMobileSearch = false;
+  }
+
+  closeFilterMenu() {
+    if (this.desktopFilterMenuTrigger) {
+      this.desktopFilterMenuTrigger.closeMenu();
+    }
   }
 
   toggleMySetups() {
