@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -64,7 +64,7 @@ interface SpellbookMap {
   ],
   providers: [DatePipe]
 })
-export class LoadoutModalComponent {
+export class LoadoutModalComponent implements AfterViewInit, OnDestroy {
   readonly SPELLBOOKS: SpellbookMap = {
     0: { name: 'Standard', image: 'Standard_spellbook_icon.png' },
     1: { name: 'Ancient', image: 'Ancient_spellbook_icon.png' },
@@ -72,12 +72,19 @@ export class LoadoutModalComponent {
     3: { name: 'Arceuus', image: 'Arceuus_spellbook_icon.png' }
   };
 
+  @ViewChild('contentWrapper', { static: false }) contentWrapper!: ElementRef<HTMLDivElement>;
+
   isOwner = false;
   isLoggedIn$: Observable<boolean>;
   hasLiked = false;
   isPublic = true;
   isEditingName = false;
   editedName = '';
+  
+  private scrollPositionKey: string;
+  private visibilityChangeHandler?: () => void;
+  private scrollHandler?: () => void;
+  private hasRestoredScroll = false;
 
   constructor(
     public dialogRef: MatDialogRef<LoadoutModalComponent>,
@@ -96,7 +103,95 @@ export class LoadoutModalComponent {
     if (!this.data.category) {
       this.data.category = 'Other';
     }
+    // Create a unique key for this loadout's scroll position
+    this.scrollPositionKey = `loadout-modal-scroll-${this.data.id || 'temp-' + Date.now()}`;
     this.checkLikeStatus();
+  }
+
+  ngAfterViewInit(): void {
+    // Wait for content to render, then handle scroll position
+    setTimeout(() => {
+      this.initializeScrollPosition();
+      this.setupScrollHandlers();
+    }, 100);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up event listeners
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+    }
+    if (this.scrollHandler && this.contentWrapper?.nativeElement) {
+      this.contentWrapper.nativeElement.removeEventListener('scroll', this.scrollHandler);
+    }
+  }
+
+  private initializeScrollPosition(): void {
+    if (!this.contentWrapper?.nativeElement) return;
+
+    const savedScrollPosition = sessionStorage.getItem(this.scrollPositionKey);
+    
+    // Check if we have a saved position and the page was previously hidden
+    // This indicates the user navigated away and is returning
+    const wasPageHidden = sessionStorage.getItem(`${this.scrollPositionKey}-was-hidden`) === 'true';
+    
+    if (savedScrollPosition !== null && wasPageHidden && !this.hasRestoredScroll) {
+      // Restore saved scroll position (user returned to the page)
+      const scrollTop = parseInt(savedScrollPosition, 10);
+      this.contentWrapper.nativeElement.scrollTop = scrollTop;
+      this.hasRestoredScroll = true;
+      // Clear the flag since we've restored
+      sessionStorage.removeItem(`${this.scrollPositionKey}-was-hidden`);
+    } else {
+      // First time opening or dialog was closed - scroll to top
+      this.contentWrapper.nativeElement.scrollTop = 0;
+      // Clear any old saved position
+      sessionStorage.removeItem(this.scrollPositionKey);
+      sessionStorage.removeItem(`${this.scrollPositionKey}-was-hidden`);
+    }
+  }
+
+  private setupScrollHandlers(): void {
+    if (!this.contentWrapper?.nativeElement) return;
+
+    // Save scroll position when user scrolls
+    this.scrollHandler = () => {
+      if (this.contentWrapper?.nativeElement) {
+        const scrollTop = this.contentWrapper.nativeElement.scrollTop;
+        sessionStorage.setItem(this.scrollPositionKey, scrollTop.toString());
+      }
+    };
+    
+    this.contentWrapper.nativeElement.addEventListener('scroll', this.scrollHandler, { passive: true });
+
+    // Save scroll position when page becomes hidden (user navigates away)
+    this.visibilityChangeHandler = () => {
+      if (document.hidden && this.contentWrapper?.nativeElement) {
+        const scrollTop = this.contentWrapper.nativeElement.scrollTop;
+        sessionStorage.setItem(this.scrollPositionKey, scrollTop.toString());
+        // Mark that the page was hidden so we know to restore on return
+        sessionStorage.setItem(`${this.scrollPositionKey}-was-hidden`, 'true');
+      } else if (!document.hidden && this.contentWrapper?.nativeElement) {
+        // Page became visible again - restore scroll position if we have one saved
+        const savedScrollPosition = sessionStorage.getItem(this.scrollPositionKey);
+        const wasHidden = sessionStorage.getItem(`${this.scrollPositionKey}-was-hidden`) === 'true';
+        
+        if (savedScrollPosition !== null && wasHidden) {
+          const scrollTop = parseInt(savedScrollPosition, 10);
+          // Small delay to ensure content is rendered
+          setTimeout(() => {
+            if (this.contentWrapper?.nativeElement) {
+              this.contentWrapper.nativeElement.scrollTop = scrollTop;
+              this.hasRestoredScroll = true;
+              // Clear the flag since we've restored
+              sessionStorage.removeItem(`${this.scrollPositionKey}-was-hidden`);
+            }
+          }, 50);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
   }
 
   get isLayoutType(): boolean {
@@ -462,6 +557,9 @@ export class LoadoutModalComponent {
   }
 
   close(): void {
+    // Clear saved scroll position when closing the dialog
+    sessionStorage.removeItem(this.scrollPositionKey);
+    sessionStorage.removeItem(`${this.scrollPositionKey}-was-hidden`);
     this.dialogRef.close();
   }
 } 
