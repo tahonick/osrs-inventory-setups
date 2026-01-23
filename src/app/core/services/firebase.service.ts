@@ -762,65 +762,37 @@ export class FirebaseService {
         }
       }
 
-      // Track if we're using filters that require client-side filtering
-      // to avoid composite index requirements on free plan
-      let needsClientSideFilter = false;
-      const clientSideFilters: {
-        categories?: Category['type'][];
-        tags?: string[];
-        isPublic?: boolean;
-        type?: 'inventory' | 'banktag' | 'banktaglayout';
-      } = {};
-
       // Handle categories filter
-      // If we have other where clauses, do client-side filtering to avoid index requirements
       if (options.categories && options.categories.length > 0) {
-        if (typeof options.isPublic === 'boolean' || options.type) {
-          // Multiple filters - do client-side to avoid composite index
-          needsClientSideFilter = true;
-          clientSideFilters.categories = options.categories;
-        } else {
-          constraints.push(where('category', 'in', options.categories));
-        }
+        constraints.push(where('category', 'in', options.categories));
+        // When filtering by category, we need to do client-side sorting
+        // to avoid composite index requirements
         needsClientSideSort = true;
       }
 
       // Handle tags filter
-      // array-contains-any with other filters requires composite indexes
       if (options.tags && options.tags.length > 0) {
-        if (typeof options.isPublic === 'boolean' || options.type || options.categories?.length) {
-          // Multiple filters - do client-side to avoid composite index
-          needsClientSideFilter = true;
-          clientSideFilters.tags = options.tags;
-        } else {
-          constraints.push(where('tags', 'array-contains-any', options.tags));
-        }
+        constraints.push(where('tags', 'array-contains-any', options.tags));
+        // When filtering by tags, we need to do client-side sorting
+        // to avoid composite index requirements
         needsClientSideSort = true;
       }
 
       // Handle public/private filter
       if (typeof options.isPublic === 'boolean') {
-        if (needsClientSideFilter) {
-          clientSideFilters.isPublic = options.isPublic;
-        } else {
-          constraints.push(where('isPublic', '==', options.isPublic));
-        }
+        constraints.push(where('isPublic', '==', options.isPublic));
       }
 
       // Handle type filter
       if (options.type) {
-        if (needsClientSideFilter) {
-          clientSideFilters.type = options.type;
+        if (options.type === 'inventory') {
+          // For inventory type, include both null type and 'inventory' type
+          constraints.push(where('type', 'in', [null, 'inventory']));
+        } else if (options.type === 'banktaglayout') {
+          // For bank tag layouts, include both 'banktag' and 'banktaglayout' types
+          constraints.push(where('type', 'in', ['banktag', 'banktaglayout']));
         } else {
-          if (options.type === 'inventory') {
-            // For inventory type, include both null type and 'inventory' type
-            constraints.push(where('type', 'in', [null, 'inventory']));
-          } else if (options.type === 'banktaglayout') {
-            // For bank tag layouts, include both 'banktag' and 'banktaglayout' types
-            constraints.push(where('type', 'in', ['banktag', 'banktaglayout']));
-          } else {
-            constraints.push(where('type', '==', options.type));
-          }
+          constraints.push(where('type', '==', options.type));
         }
       }
 
@@ -843,12 +815,12 @@ export class FirebaseService {
       }
 
       // Handle pagination
-      // When doing client-side sorting or filtering, we need to fetch more results first
-      if (options.pageSize && !needsClientSideSort && !needsClientSideFilter) {
+      // When doing client-side sorting, we need to fetch all results first, then paginate
+      if (options.pageSize && !needsClientSideSort) {
         constraints.push(limit(options.pageSize));
-      } else if (needsClientSideSort || needsClientSideFilter) {
-        // For client-side operations, fetch a larger batch to ensure we have enough after filtering/sorting
-        // We'll limit to a reasonable maximum (e.g., 1000) to avoid memory issues and stay within free plan limits
+      } else if (needsClientSideSort) {
+        // For client-side sorting, fetch a larger batch to ensure we have enough to sort
+        // We'll limit to a reasonable maximum (e.g., 1000) to avoid memory issues
         constraints.push(limit(1000));
       }
 
@@ -872,55 +844,6 @@ export class FirebaseService {
         ...doc.data(),
         id: doc.id
       })) as LoadoutData[];
-
-      // Apply client-side filtering if needed to avoid composite index requirements
-      if (needsClientSideFilter) {
-        loadouts = loadouts.filter(loadout => {
-          // Filter by category
-          if (clientSideFilters.categories && clientSideFilters.categories.length > 0) {
-            if (!clientSideFilters.categories.includes(loadout.category as Category['type'])) {
-              return false;
-            }
-          }
-          
-          // Filter by tags
-          if (clientSideFilters.tags && clientSideFilters.tags.length > 0) {
-            const loadoutTags = loadout.tags || [];
-            const hasMatchingTag = clientSideFilters.tags.some(tag => 
-              loadoutTags.includes(tag)
-            );
-            if (!hasMatchingTag) {
-              return false;
-            }
-          }
-          
-          // Filter by isPublic
-          if (typeof clientSideFilters.isPublic === 'boolean') {
-            if (loadout.isPublic !== clientSideFilters.isPublic) {
-              return false;
-            }
-          }
-          
-          // Filter by type
-          if (clientSideFilters.type) {
-            if (clientSideFilters.type === 'inventory') {
-              if (loadout.type && loadout.type !== 'inventory') {
-                return false;
-              }
-            } else if (clientSideFilters.type === 'banktaglayout') {
-              if (loadout.type !== 'banktag' && loadout.type !== 'banktaglayout') {
-                return false;
-              }
-            } else {
-              if (loadout.type !== clientSideFilters.type) {
-                return false;
-              }
-            }
-          }
-          
-          return true;
-        });
-      }
 
       // If we have liked loadout IDs, fetch those loadouts too
       if (options.showPersonalOnly && likedLoadoutIds.length > 0) {
