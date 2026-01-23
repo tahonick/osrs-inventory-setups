@@ -219,10 +219,16 @@ export class BulkImportWizardComponent implements OnInit {
       console.error('Error getting current user:', error);
     }
     
-    // Load user's existing loadouts for duplicate detection
+    // Load existing loadouts for duplicate detection
+    // Always check against ALL public loadouts so we detect duplicates of any setup on the site.
+    // (Anonymous users have 0 personal loadouts; Google users' public setups are in this list too.)
     try {
-      const result = await this.firebaseService.getLoadouts({ showPersonalOnly: true });
+      const result = await this.firebaseService.getLoadouts({ 
+        showPersonalOnly: false, // Always use public feed for duplicate check
+        pageSize: 1000 // Load up to 1000 existing loadouts for duplicate detection
+      });
       this.existingLoadouts = result.loadouts;
+      console.log(`Loaded ${this.existingLoadouts.length} existing loadouts for duplicate detection`);
     } catch (error) {
       console.error('Error loading existing loadouts:', error);
     }
@@ -409,13 +415,45 @@ export class BulkImportWizardComponent implements OnInit {
     this.detectingDuplicates = true;
 
     try {
+      // Reload existing loadouts to ensure we have the latest data
+      // Always check against ALL public loadouts (anonymous users have 0 personal;
+      // duplicates like "Zulrah Mage Only" exist in the public feed)
+      try {
+        const result = await this.firebaseService.getLoadouts({ 
+          showPersonalOnly: false, // Always use public feed for duplicate check
+          pageSize: 1000 // Load up to 1000 existing loadouts for duplicate detection
+        });
+        this.existingLoadouts = result.loadouts;
+        console.log(`🔍 Reloaded ${this.existingLoadouts.length} existing loadouts for duplicate detection`);
+      } catch (error) {
+        console.error('Error reloading existing loadouts:', error);
+        // Continue with existing loadouts if reload fails
+      }
+      
       const selectedSetups = this.state.parsedSetups.filter(s => s.selected);
+      
+      console.log('🔍 Duplicate Detection:', {
+        selectedSetupsCount: selectedSetups.length,
+        existingLoadoutsCount: this.existingLoadouts.length,
+        threshold: 80
+      });
+      
+      if (this.existingLoadouts.length === 0) {
+        console.warn('⚠️ No existing loadouts found - duplicate detection will not work');
+        this.snackBar.open('No existing loadouts to check against.', 'Close', { duration: 3000 });
+      }
       
       this.state.duplicateMatches = this.duplicateDetector.findDuplicates(
         selectedSetups,
         this.existingLoadouts,
         80 // 80% threshold
       );
+      
+      console.log('🔍 Duplicate Detection Results:', {
+        totalMatches: this.state.duplicateMatches.length,
+        exactMatches: this.exactMatches.length,
+        nonExactMatches: this.nonExactMatches.length
+      });
 
       // Auto-set exact matches to 'skip'
       this.state.duplicateMatches.forEach(match => {

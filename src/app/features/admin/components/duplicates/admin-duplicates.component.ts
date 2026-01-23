@@ -92,7 +92,7 @@ export class AdminDuplicatesComponent implements OnInit {
   }
 
   async deleteLoadout(loadout: LoadoutData) {
-    if (!confirm(`Delete "${loadout.setup?.name || 'this loadout'}"? This cannot be undone.`)) {
+    if (!confirm(`Delete "${loadout.setup.name || 'this loadout'}"? This cannot be undone.`)) {
       return;
     }
 
