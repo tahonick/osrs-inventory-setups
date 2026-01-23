@@ -60,7 +60,7 @@
               <mat-icon>content_copy</mat-icon>
               Duplicate Group #{{ i + 1 }}
               <mat-chip>{{ group.count }} copies</mat-chip>
-              <span class="preview-name">{{ group.loadouts[0].setup?.name || 'Unnamed' }}</span>
+              <span class="preview-name">{{ group.loadouts[0].setup.name || 'Unnamed' }}</span>
             </span>
             <div class="group-actions">
               <button mat-button color="accent" (click)="selectAllInGroup(group)" matTooltip="Select all but first (recommended)">
@@ -88,7 +88,7 @@
               class="loadout-checkbox">
             </mat-checkbox>
             <div class="loadout-info">
-              <div class="loadout-name">{{ loadout.setup?.name || 'Unnamed' }}</div>
+              <div class="loadout-name">{{ loadout.setup.name || 'Unnamed' }}</div>
               <div class="loadout-meta">
                 <span class="creator">
                   <mat-icon>person</mat-icon>

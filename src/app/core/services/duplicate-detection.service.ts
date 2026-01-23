@@ -51,10 +51,46 @@ export class DuplicateDetectionService {
     threshold: number = this.DEFAULT_THRESHOLD
   ): DuplicateMatch[] {
     const matches: DuplicateMatch[] = [];
+    
+    // Reset logging flag
+    this._hasLoggedFirstComparison = false;
+    
+    console.log(`🔍 findDuplicates: Comparing ${newSetups.length} new setups against ${existingLoadouts.length} existing loadouts (threshold: ${threshold}%)`);
+    
+    // Debug: Log sample of existing loadouts
+    if (existingLoadouts.length > 0) {
+      const sample = existingLoadouts[0];
+      console.log('🔍 Sample existing loadout:', {
+        name: sample.setup.name,
+        invLength: sample.setup.inv?.length,
+        invItems: sample.setup.inv?.filter(i => i).length,
+        eqLength: sample.setup.eq?.length,
+        eqItems: sample.setup.eq?.filter(i => i).length
+      });
+    }
 
     for (const newSetup of newSetups) {
+      console.log(`🔍 Checking new setup: "${newSetup.setup.name}" (inv: ${newSetup.setup.inv?.filter(i => i).length || 0} items, eq: ${newSetup.setup.eq?.filter(i => i).length || 0} items)`);
+      
+      let bestMatch = { score: 0, name: '' };
+      
       for (const existingLoadout of existingLoadouts) {
         const similarity = this.calculateSimilarity(newSetup.setup, existingLoadout.setup);
+        
+        // Track best match for debugging
+        if (similarity > bestMatch.score) {
+          bestMatch = { score: similarity, name: existingLoadout.setup.name };
+        }
+        
+        // Log ALL comparisons for the first setup to debug
+        if (newSetups.indexOf(newSetup) === 0 && existingLoadouts.indexOf(existingLoadout) < 5) {
+          console.log(`🔍 Similarity: ${similarity}% - "${newSetup.setup.name}" vs "${existingLoadout.setup.name}"`);
+        }
+        
+        // Log high similarity scores for debugging
+        if (similarity >= threshold - 10) { // Log if within 10% of threshold
+          console.log(`🔍 HIGH Similarity: ${similarity}% - "${newSetup.setup.name}" vs "${existingLoadout.setup.name}"`);
+        }
 
         if (similarity >= threshold) {
           const differences = this.calculateDifferences(newSetup.setup, existingLoadout.setup);
@@ -68,10 +104,17 @@ export class DuplicateDetectionService {
           });
         }
       }
+      
+      // Log best match for each new setup to see why duplicates aren't detected
+      if (bestMatch.score > 0 && bestMatch.score < threshold) {
+        console.log(`⚠️ Best match for "${newSetup.setup.name}": ${bestMatch.score}% (below ${threshold}% threshold) - "${bestMatch.name}"`);
+      }
     }
 
     // Sort by similarity score (highest first)
     matches.sort((a, b) => b.similarityScore - a.similarityScore);
+    
+    console.log(`🔍 findDuplicates: Found ${matches.length} matches above ${threshold}% threshold`);
 
     return matches;
   }
@@ -80,6 +123,30 @@ export class DuplicateDetectionService {
    * Calculate overall similarity between two setups (0-100)
    */
   calculateSimilarity(setup1: Setup, setup2: Setup): number {
+    // Debug: Log data structure for first comparison
+    const isFirstComparison = !this._hasLoggedFirstComparison;
+    if (isFirstComparison) {
+      this._hasLoggedFirstComparison = true;
+      console.log('🔍 First comparison data structure:', {
+        setup1: {
+          invLength: setup1.inv?.length,
+          invItems: setup1.inv?.filter(i => i).length,
+          eqLength: setup1.eq?.length,
+          eqItems: setup1.eq?.filter(i => i).length,
+          hasRp: !!setup1.rp,
+          rpLength: setup1.rp?.length
+        },
+        setup2: {
+          invLength: setup2.inv?.length,
+          invItems: setup2.inv?.filter(i => i).length,
+          eqLength: setup2.eq?.length,
+          eqItems: setup2.eq?.filter(i => i).length,
+          hasRp: !!setup2.rp,
+          rpLength: setup2.rp?.length
+        }
+      });
+    }
+    
     const invSimilarity = this.compareInventory(setup1.inv, setup2.inv);
     const eqSimilarity = this.compareEquipment(setup1.eq, setup2.eq);
     const rpSimilarity = this.compareRunePouch(setup1.rp || [], setup2.rp || []);
@@ -92,8 +159,17 @@ export class DuplicateDetectionService {
       rpSimilarity * this.WEIGHTS.runePouch +
       afiSimilarity * this.WEIGHTS.afi;
 
-    return Math.round(totalSimilarity * 100);
+    const finalScore = Math.round(totalSimilarity * 100);
+    
+    // Debug logging for low scores to understand why duplicates aren't detected
+    if (finalScore >= 70 || isFirstComparison) { // Log if close to threshold or first comparison
+      console.log(`🔍 Similarity breakdown: ${finalScore}% (inv: ${Math.round(invSimilarity * 100)}%, eq: ${Math.round(eqSimilarity * 100)}%, rp: ${Math.round(rpSimilarity * 100)}%, afi: ${Math.round(afiSimilarity * 100)}%)`);
+    }
+
+    return finalScore;
   }
+  
+  private _hasLoggedFirstComparison = false;
 
   /**
    * Compare inventory arrays (position-independent, considers quantities)
